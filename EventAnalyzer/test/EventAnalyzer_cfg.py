@@ -17,6 +17,13 @@ process.source = cms.Source("PoolSource",
     )
 )
 
+# Trigger
+#from HLTrigger.HLTfilters.hltHighLevel_cfi import hltHighLevel
+process.load('HLTrigger.HLTfilters.hltHighLevel_cfi')
+process.hltHighLevel.TriggerResultsTag = cms.InputTag("TriggerResults","","HLT")
+process.hltHighLevel.HLTPaths = ['HLT_DoublePhoton60*', 'HLT_DoublePhoton85*']
+process.hltHighLevel.throw = cms.bool(False)
+
 process.load('DiphotonAnalyzer.EventAnalyzer.EventAnalyzer_cfi')
 
 # set some parameters to the run
@@ -29,4 +36,7 @@ process.TFileService = cms.Service("TFileService",
     closeFileFast = cms.untracked.bool(True)
 )
 
-process.p = cms.Path(process.eventAnalyzer)
+process.p = cms.Path(
+    process.hltHighLevel*
+    process.eventAnalyzer
+)
