@@ -63,10 +63,12 @@ class EventAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
       // ----------member data ---------------------------
 
+      bool passSinglePhotonCuts( const flashgg::Photon* ) const;
+
       edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphToken_;
       edm::EDGetTokenT< edm::View<flashgg::DiProtonDiPhotonCandidate> > diphprToken_;
       edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
-      double singlePhotonMinPt_;
+      double singlePhotonMinPt_, singlePhotonMaxEta_, singlePhotonMinR9_;
       double photonPairMinMass_;
 
       TH1D* hMgg_notag_, *hMgg_tag_;
@@ -93,20 +95,22 @@ EventAnalyzer::EventAnalyzer(const edm::ParameterSet& iConfig) :
   diphToken_  (consumes< edm::View<flashgg::DiPhotonCandidate> >        (iConfig.getParameter<edm::InputTag>("diphotonLabel"))),
   diphprToken_(consumes< edm::View<flashgg::DiProtonDiPhotonCandidate> >(iConfig.getParameter<edm::InputTag>("diphotonwithprotonLabel"))),
   metToken_   (consumes< edm::View<pat::MET> >                          (iConfig.getParameter<edm::InputTag>("metLabel"))),
-  singlePhotonMinPt_(iConfig.getParameter<double>("minPtSinglePhoton")),
-  photonPairMinMass_(iConfig.getParameter<double>("minMassDiPhoton"))
+  singlePhotonMinPt_ (iConfig.getParameter<double>("minPtSinglePhoton")),
+  singlePhotonMaxEta_(iConfig.getParameter<double>("maxEtaSinglePhoton")),
+  singlePhotonMinR9_ (iConfig.getParameter<double>("minR9SinglePhoton")),
+  photonPairMinMass_ (iConfig.getParameter<double>("minMassDiPhoton"))
 {
   //now do what ever initialization is needed
   usesResource("TFileService");
   edm::Service<TFileService> fs;
   hMgg_notag_ = fs->make<TH1D>("diphoton_m_notag", "Diphoton m (no proton tagging)", 750, 500., 2000.);
   hPtgg_notag_ = fs->make<TH1D>("diphoton_pt_notag", "Diphoton p_{T} (no proton tagging)", 160, 0., 400.);
-  hYgg_notag_ = fs->make<TH1D>("diphoton_y_notag", "Diphoton rapidity (no proton tagging)", 20, -5., 5.);
+  hYgg_notag_ = fs->make<TH1D>("diphoton_y_notag", "Diphoton rapidity (no proton tagging)", 40, -2.5, 2.5);
   hMgg_tag_ = fs->make<TH1D>("diphoton_m_tag", "Diphoton m (proton tagging)", 750, 500., 2000.);
   hPtgg_tag_ = fs->make<TH1D>("diphoton_pt_tag", "Diphoton p_{T} (proton tagging)", 160, 0., 400.);
   hYgg_tag_ = fs->make<TH1D>("diphoton_y_tag", "Diphoton rapidity (proton tagging)", 20, -5., 5.);
   hMgg_vs_Mpp_ = fs->make<TH2D>("mgg_vs_mpp", "Diphoton m / diproton missing M", 300, 500., 2000., 300, 500., 2000.);
-  hYgg_vs_Ypp_ = fs->make<TH2D>("ygg_vs_ypp", "Diphoton rapidity / diproton rapidity", 20, -5., 5., 20, -5., 5.);
+  hYgg_vs_Ypp_ = fs->make<TH2D>("ygg_vs_ypp", "Diphoton rapidity / diproton rapidity", 100, -5., 5., 100, -5., 5.);
   hMpp_ = fs->make<TH1D>("diproton_m", "Diproton missing mass", 750, 500., 2000.);
   hMET_vs_Ptgg_notag = fs->make<TH2D>("diphoton_pt_vs_met_notag", "Diphoton p_{T} / MET (no proton tagging)", 160, 0., 400., 160, 0., 400.);
   hMET_vs_Ptgg_tag = fs->make<TH2D>("diphoton_pt_vs_met_tag", "Diphoton p_{T} / MET (proton tagging)", 160, 0., 400., 160, 0., 400.);
@@ -141,11 +145,10 @@ EventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   const edm::View<pat::MET>* metColl = mets.product();
   edm::View<pat::MET>::const_iterator met = metColl->begin();
 
- /*if (num_diphoton_cand==1) { //FIXME study the multiple diphoton cases
-    hDiphotonPtVsMET_->Fill(gamgam_cand.pt(), met->sumEt());
-  }*/
+  // -----
+  // collect the diphoton collection (no proton tag required here)
+  // -----
 
-  // fetch the diphoton collection from EDM file
   edm::Handle< edm::View<flashgg::DiPhotonCandidate> > diph;
   iEvent.getByToken(diphToken_, diph);
 
@@ -153,14 +156,13 @@ EventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   for ( unsigned int i=0; i<diph->size(); i++ ) {
     edm::Ptr<flashgg::DiPhotonCandidate> pc = diph->ptrAt( i );
 
-    if ( pc->leadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
-    if ( pc->subLeadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
+    if ( pc->leadPhotonId()<-0.9 ) continue;
+    if ( pc->subLeadPhotonId()<-0.9 ) continue;
+
+    if ( !passSinglePhotonCuts( pc->leadingPhoton() ) ) continue;
+    if ( !passSinglePhotonCuts( pc->subLeadingPhoton() ) ) continue;
+
     if ( pc->mass()<photonPairMinMass_ ) continue;
-
-    if ( fabs( pc->leadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->leadingPhoton()->superCluster()->eta() )<=1.566 or fabs( pc->leadingPhoton()->superCluster()->eta() )>=2.5
-      or fabs( pc->subLeadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->subLeadingPhoton()->superCluster()->eta())<=1.566 or fabs( pc->subLeadingPhoton()->superCluster()->eta())>=2.5 ) continue;
-
-    if ( max( pc->leadingPhoton()->r9(), pc->subLeadingPhoton()->r9() )<0.94 ) continue;
 
     hMgg_notag_->Fill( pc->mass() );
     hPtgg_notag_->Fill( pc->pt() );
@@ -171,6 +173,10 @@ EventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
   hNum_diph_notag_->Fill( num_cand_notag );
 
+  // -----
+  // collect the diphoton + diproton tag
+  // -----
+
   edm::Handle< edm::View<flashgg::DiProtonDiPhotonCandidate> > diphpr;
   iEvent.getByToken(diphprToken_, diphpr);
 
@@ -178,15 +184,13 @@ EventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   for ( unsigned int i=0; i<diphpr->size(); i++ ) {
     edm::Ptr<flashgg::DiProtonDiPhotonCandidate> pc = diphpr->ptrAt( i );
 
-    if ( pc->diphoton()->leadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
-    if ( pc->diphoton()->subLeadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
+    if ( pc->diphoton()->leadPhotonId()<-0.9 ) continue;
+    if ( pc->diphoton()->subLeadPhotonId()<-0.9 ) continue;
+
+    if ( !passSinglePhotonCuts( pc->diphoton()->leadingPhoton() ) ) continue;
+    if ( !passSinglePhotonCuts( pc->diphoton()->subLeadingPhoton() ) ) continue;
+
     if ( pc->diphoton()->mass()<photonPairMinMass_ ) continue;
-
-    if ( fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta() )<=1.566 or fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta() )>=2.5
-      or fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())<=1.566 or fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())>=2.5 ) continue;
-
-    if ( max( pc->diphoton()->leadingPhoton()->r9(), pc->diphoton()->subLeadingPhoton()->r9() )<0.94 ) continue;
-    //std::cout << "protons: " << pc->diphoton()->mass() << " // " << pc->diproton()->mass() << std::endl;
 
     hMgg_tag_->Fill( pc->diphoton()->mass() );
     hPtgg_tag_->Fill( pc->diphoton()->pt() );
@@ -204,20 +208,22 @@ EventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
   hNum_diph_tag_->Fill( num_gg_cand_tag );
 
-  /*flashgg::DiPhotonCandidate gamgam_cand;
-  for (edm::View<flashgg::DiPhotonCandidate>::const_iterator diph=diphotons->begin(); diph!=diphotons->end(); diph++) {
-
-    std::cout << "---> diphoton " << num_diphoton_cand << "::: mass=" << diph->mass() << ", pt=" << diph->pt() << std::endl
-              << "     leading photon: pt=" << diph->leadingPhoton()->pt() << std::endl
-              << "  subleading photon: pt=" << diph->subLeadingPhoton()->pt() << std::endl;
-    num_diphoton_cand++;
-    gamgam_cand = *diph;
-  }*/
-  //std::cout << num_diphoton_cand << " diphoton candidate(s) in the event" << std::endl;
-
-
 }
 
+bool
+EventAnalyzer::passSinglePhotonCuts( const flashgg::Photon* phot ) const
+{
+  const float abseta = fabs( phot->superCluster()->eta() );
+
+  if ( ( abseta>=1.4442 and abseta<=1.566 ) or abseta>=singlePhotonMaxEta_ ) return false;
+  if ( phot->full5x5_r9()<=0.8 and phot->egChargedHadronIso()>=20 and phot->egChargedHadronIso()/phot->pt()>=0.3 ) return false;
+  if ( phot->hadronicOverEm()>=0.08 ) return false;
+
+  if ( phot->pt()<singlePhotonMinPt_ ) return false;
+  if ( phot->r9()<singlePhotonMinR9_ ) return false;
+
+  return true;
+}
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
