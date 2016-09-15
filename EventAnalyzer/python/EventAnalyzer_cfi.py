@@ -1,6 +1,7 @@
 import FWCore.ParameterSet.Config as cms
 
 eventAnalyzer = cms.EDAnalyzer('EventAnalyzer',
+    sqrtS = cms.double(13.e3),
     metLabel = cms.InputTag('slimmedMETs'),
     diphotonwithprotonLabel = cms.InputTag('flashggDiProtonsDiPhotons'),
     diphotonLabel = cms.InputTag('flashggDiPhotons'),

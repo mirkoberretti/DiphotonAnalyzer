@@ -12,7 +12,7 @@
 */
 //
 // Original Author:  Laurent Forthomme
-//         Created:  Thu, 01 Sep 2016 16:57:56 GMT
+//         Created:  Tue, 13 Sep 2016 03:57:43 GMT
 //
 //
 
@@ -29,9 +29,11 @@
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
-#include "DataFormats/PatCandidates/interface/MET.h"
+#include "flashgg/DataFormats/interface/Proton.h"
 #include "flashgg/DataFormats/interface/DiPhotonCandidate.h"
-#include "flashgg/DataFormats/interface/DiProtonDiPhotonCandidate.h"
+#include "DataFormats/PatCandidates/interface/MET.h"
+
+#include "DiphotonAnalyzer/EventAnalyzer/interface/SelectionUtils.h"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -41,10 +43,9 @@
 // class declaration
 //
 
-#define MAX_PHOTON 20
-#define MAX_DIPHOTON 5
 #define MAX_PROTON 10
 #define MAX_DIPROTON 5
+#define MAX_DIPHOTON 5
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
   public:
@@ -61,10 +62,13 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
     // ----------member data ---------------------------
 
-    edm::EDGetTokenT< edm::View<flashgg::Photon> > photonToken_;
+    void clearTree();
+
+    edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
     edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
-    double singlePhotonMinPt_;
+    double sqrtS_;
+    double singlePhotonMinPt_, singlePhotonMaxEta_, singlePhotonMinR9_;
     double photonPairMinMass_;
 
     std::string filename_;
@@ -72,22 +76,21 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     TTree* tree_;
 
     // --- tree components ---
-    unsigned int fPhotonNum;
-    float fPhotonPt[MAX_PHOTON], fPhotonEta[MAX_PHOTON], fPhotonEtaSC[MAX_PHOTON], fPhotonPhi[MAX_PHOTON];
-    float fPhotonR9[MAX_PHOTON];
 
     unsigned int fProtonNum;
     float fProtonXi[MAX_PROTON];
     unsigned int fProtonSide[MAX_PROTON];
 
+    unsigned int fDiprotonNum;
+    float fDiprotonM[MAX_DIPROTON], fDiprotonY[MAX_DIPROTON];
+
     unsigned int fDiphotonNum;
-    unsigned int fDiphotonPhoton1[MAX_DIPHOTON], fDiphotonPhoton2[MAX_DIPHOTON];
+    float fDiphotonPt1[MAX_DIPHOTON], fDiphotonPt2[MAX_DIPHOTON];
+    float fDiphotonEta1[MAX_DIPHOTON], fDiphotonEta2[MAX_DIPHOTON];
+    float fDiphotonPhi1[MAX_DIPHOTON], fDiphotonPhi2[MAX_DIPHOTON];
+    float fDiphotonR91[MAX_DIPHOTON], fDiphotonR92[MAX_DIPHOTON];
     float fDiphotonM[MAX_DIPHOTON], fDiphotonY[MAX_DIPHOTON];
     float fDiphotonPt[MAX_DIPHOTON], fDiphotonDphi[MAX_DIPHOTON];
-
-    unsigned int fDiprotonNum;
-    unsigned int fDiprotonProton1[MAX_DIPROTON], fDiprotonProton2[MAX_DIPROTON];
-    float fDiprotonM[MAX_DIPROTON], fDiprotonY[MAX_DIPROTON];
 
     float fMET;
 
@@ -105,12 +108,15 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 // constructors and destructor
 //
 TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
-  photonToken_( consumes< edm::View<flashgg::Photon> >( iConfig.getParameter<edm::InputTag>( "photonLabel" ) ) ),
-  protonToken_( consumes< edm::View<flashgg::Proton> >( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
-  metToken_   ( consumes< edm::View<pat::MET> >       ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
-  singlePhotonMinPt_( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
-  photonPairMinMass_( iConfig.getParameter<double>( "minMassDiPhoton" ) ),
-  filename_         ( iConfig.getParameter<std::string>( "outputFilename" ) ),
+  diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
+  protonToken_  ( consumes< edm::View<flashgg::Proton> >           ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
+  metToken_           ( consumes< edm::View<pat::MET> >            ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
+  sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
+  singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
+  singlePhotonMaxEta_( iConfig.getParameter<double>( "maxEtaSinglePhoton" ) ),
+  singlePhotonMinR9_ ( iConfig.getParameter<double>( "minR9SinglePhoton" ) ),
+  photonPairMinMass_ ( iConfig.getParameter<double>( "minMassDiPhoton" ) ),
+  filename_          ( iConfig.getParameter<std::string>( "outputFilename" ) ),
   file_( 0 ), tree_( 0 )
 {
   //now do what ever initialization is needed
@@ -137,104 +143,103 @@ TreeProducer::~TreeProducer()
 // member functions
 //
 
+void
+TreeProducer::clearTree()
+{
+  fProtonNum = 0;
+  for ( unsigned int i=0; i<MAX_PROTON; i++ ) {
+    fProtonXi[i] = 0.;
+    fProtonSide[i] = 2; //invalid
+  }
+
+  fDiprotonNum = 0;
+  for ( unsigned int i=0; i<MAX_DIPROTON; i++ ) {
+    fDiprotonM[i] = fDiprotonY[i] = 0.;
+  }
+
+  fDiphotonNum = 0;
+  for ( unsigned int i=0; i<MAX_DIPHOTON; i++ ) {
+    fDiphotonPt1[i] = fDiphotonPt2[i] = 0.;
+    fDiphotonEta1[i] = fDiphotonEta2[i] = 0.;
+    fDiphotonPhi1[i] = fDiphotonPhi2[i] = 0.;
+    fDiphotonR91[i] = fDiphotonR92[i] = 0.;
+    fDiphotonM[i] = fDiphotonY[i] = fDiphotonPt[i] = fDiphotonDphi[i] = 0.;
+  }
+
+  fMET = 0.;
+}
+
 // ------------ method called for each event  ------------
 void
 TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   #include <iostream> // for debugging purposes
 
-  // fetch the diphoton collection from EDM file
-  edm::Handle< edm::View<flashgg::Photon> > photons;
-  iEvent.getByToken(photonToken_, photons);
+  clearTree();
 
-  fPhotonNum = 0;
-  for ( unsigned int i=0; i<photons->size(); i++ ) {
-
-    edm::Ptr<flashgg::Photon> photon = photons->ptrAt( i );
-    fPhotonPt[i] = photon->pt();
-    fPhotonEta[i] = photon->eta();
-    fPhotonEtaSC[i] = photon->superCluster()->eta();
-    fPhotonPhi[i] = photon->phi();
-    fPhotonR9[i] = photon->r9();
-
-    fPhotonNum++;
-  }
-
-  fDiphotonNum = 0;
-  TLorentzVector ph1, ph2;
-  for ( unsigned int i=0; i<fPhotonNum; i++ ) {
-
-    // single photons' quality cuts before diphoton candidates matching
-    if ( ( fabs( fPhotonEtaSC[i] )>=1.4442 and fabs( fPhotonEtaSC[i] )<=1.566 ) or fabs( fPhotonEtaSC[i] )>=2.5 ) continue;
-    if ( fPhotonR9[i]<0.94 ) continue;
-    if ( fPhotonPt[i]<singlePhotonMinPt_ ) continue;
-    ph1.SetPtEtaPhiM( fPhotonPt[i], fPhotonEta[i], fPhotonPhi[i], 0. );
-
-    for ( unsigned int j=i+1; j<fPhotonNum; j++ ) {
-      if ( ( fabs( fPhotonEtaSC[j] )>=1.4442 and fabs( fPhotonEtaSC[j] )<=1.566 ) or fabs( fPhotonEtaSC[j] )>=2.5 ) continue;
-      if ( fPhotonR9[j]<0.94 ) continue;
-      if ( fPhotonPt[j]<singlePhotonMinPt_ ) continue;
-      ph2.SetPtEtaPhiM( fPhotonPt[j], fPhotonEta[j], fPhotonPhi[j], 0. );
-
-      if ( (ph1+ph2).M()<photonPairMinMass_ ) continue;
-
-      fDiphotonPhoton1[fDiphotonNum] = i;
-      fDiphotonPhoton2[fDiphotonNum] = j;
-      fDiphotonNum++;
-    
-    }
-  }
-
+  // fetch the proton collection from EDM file
   edm::Handle< edm::View<flashgg::Proton> > protons;
   iEvent.getByToken(protonToken_, protons);
 
-  fProtonNum = 0;
+  fProtonNum = fDiprotonNum = 0;
   for ( unsigned int i=0; i<protons->size(); i++ ) {
     edm::Ptr<flashgg::Proton> proton = protons->ptrAt( i );
+
     fProtonXi[i] = proton->xi();
     fProtonSide[i] = proton->side();
+
+    for ( unsigned int j=i+1; j<protons->size(); j++ ) {
+      edm::Ptr<flashgg::Proton> proton2 = protons->ptrAt( j );
+      if ( proton2->side()==proton->side() ) continue;
+      fDiprotonM[fDiprotonNum] = sqrtS_*sqrt( proton->xi()*proton2->xi() );
+      fDiprotonY[fDiprotonNum] = log( proton2->xi()/proton->xi() )/2.;
+
+      fDiprotonNum++;
+    }
+
     fProtonNum++;
   }
 
-  for ( unsigned int i=0; i<fProtonNum; i++ ) {
-    for ( unsigned int j=i+1; j<fProtonNum; j++ ) {
-      if ( fProtonSide[i]==fProtonSide[j] ) continue;
-      fDiprotonM[fDiprotonNum] = 13.e3*sqrt( fProtonXi[i]*fProtonXi[j] );
-      fDiprotonY[fDiprotonNum] = log( fProtonXi[j]/fProtonXi[i] )/2.;
-      fDiprotonNum++;
-    }
+  // fetch the diphoton collection from EDM file
+  edm::Handle< edm::View<flashgg::DiPhotonCandidate> > diphotons;
+  iEvent.getByToken(diphotonToken_, diphotons);
+
+  fDiphotonNum = 0;
+  for ( unsigned int i=0; i<diphotons->size(); i++ ) {
+    edm::Ptr<flashgg::DiPhotonCandidate> diphoton = diphotons->ptrAt( i );
+
+    if ( diphoton->leadPhotonId()<-0.9 ) continue;
+    if ( diphoton->subLeadPhotonId()<-0.9 ) continue;
+
+    if ( !passSinglePhotonCuts( diphoton->leadingPhoton() ) ) continue;
+    if ( !passSinglePhotonCuts( diphoton->subLeadingPhoton() ) ) continue;
+
+    if ( fabs( diphoton->leadingPhoton()->eta() )>=singlePhotonMaxEta_ or fabs( diphoton->subLeadingPhoton()->eta() )>=singlePhotonMaxEta_ ) continue;
+    if ( diphoton->leadingPhoton()->pt()<singlePhotonMinPt_ or diphoton->subLeadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
+    if ( diphoton->leadingPhoton()->r9()<singlePhotonMinR9_ or diphoton->subLeadingPhoton()->r9()<singlePhotonMinR9_ ) continue;
+
+    if ( diphoton->mass()<photonPairMinMass_ ) continue;
+
+    fDiphotonPt1[i] = diphoton->leadingPhoton()->pt();
+    fDiphotonPt2[i] = diphoton->subLeadingPhoton()->pt();
+    fDiphotonEta1[i] = diphoton->leadingPhoton()->eta();
+    fDiphotonEta2[i] = diphoton->subLeadingPhoton()->eta();
+    fDiphotonPhi1[i] = diphoton->leadingPhoton()->phi();
+    fDiphotonPhi2[i] = diphoton->subLeadingPhoton()->phi();
+    fDiphotonR91[i] = diphoton->leadingPhoton()->r9();
+    fDiphotonR92[i] = diphoton->subLeadingPhoton()->r9();
+
+    fDiphotonM[i] = diphoton->mass();
+    fDiphotonY[i] = diphoton->rapidity();
+    fDiphotonPt[i] = diphoton->pt();
+
+    float dphi = diphoton->leadingPhoton()->phi()-diphoton->subLeadingPhoton()->phi();
+    while ( dphi<-TMath::Pi() ) dphi += 2.*TMath::Pi();
+    while ( dphi> TMath::Pi() ) dphi -= 2.*TMath::Pi();
+    fDiphotonDphi[i] = dphi;
+
+    fDiphotonNum++;
   }
-
-
-  /*unsigned int num_gg_cand_tag = 0;
-  for ( unsigned int i=0; i<diphpr->size(); i++ ) {
-    edm::Ptr<flashgg::DiProtonDiPhotonCandidate> pc = diphpr->ptrAt( i );
-
-    if ( pc->diphoton()->leadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
-    if ( pc->diphoton()->subLeadingPhoton()->pt()<singlePhotonMinPt_ ) continue;
-    if ( pc->diphoton()->mass()<photonPairMinMass_ ) continue;
-
-    if ( fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta() )<=1.566 or fabs( pc->diphoton()->leadingPhoton()->superCluster()->eta() )>=2.5
-      or fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())>=1.4442 and fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())<=1.566 or fabs( pc->diphoton()->subLeadingPhoton()->superCluster()->eta())>=2.5 ) continue;
-
-    if ( max( pc->diphoton()->leadingPhoton()->r9(), pc->diphoton()->subLeadingPhoton()->r9() )<0.94 ) continue;
-    //std::cout << "protons: " << pc->diphoton()->mass() << " // " << pc->diproton()->mass() << std::endl;
-
-    hMgg_tag_->Fill( pc->diphoton()->mass() );
-    hPtgg_tag_->Fill( pc->diphoton()->pt() );
-    hYgg_tag_->Fill( pc->diphoton()->rapidity() );
-
-    hMET_vs_Ptgg_tag->Fill( pc->diphoton()->pt(), met->sumEt() );
-
-    hMgg_vs_Mpp_->Fill( pc->diproton()->mass(), pc->diphoton()->mass() );
-    hYgg_vs_Ypp_->Fill( pc->diproton()->rapidity(), pc->diphoton()->rapidity() );
-
-    hMpp_->Fill( pc->diproton()->mass() );
-
-    num_gg_cand_tag++;
-
-  }
-  hNum_diph_tag_->Fill( num_gg_cand_tag );*/
 
   if ( fDiphotonNum<1 ) return;
 
@@ -256,33 +261,29 @@ TreeProducer::beginJob()
 {
   tree_ = new TTree( "evt", "diphoton analyzer tree" );
 
-  tree_->Branch( "num_photon", &fPhotonNum, "num_photon/i" );
-  tree_->Branch( "photon_pt", fPhotonPt, "photon_pt[num_photon]/F" );
-  tree_->Branch( "photon_eta", fPhotonEta, "photon_eta[num_photon]/F" );
-  tree_->Branch( "photon_eta_sc", fPhotonEtaSC, "photon_eta_sc[num_photon]/F" );
-  tree_->Branch( "photon_phi", fPhotonPhi, "photon_phi[num_photon]/F" );
-  tree_->Branch( "photon_r9", fPhotonR9, "photon_r9[num_photon]/F" );
-
   tree_->Branch( "num_proton", &fProtonNum, "num_proton/i" );
   tree_->Branch( "proton_xi", fProtonXi, "proton_xi[num_proton]/F" );
   tree_->Branch( "proton_side", fProtonSide, "proton_side[num_proton]/i" );
 
+  tree_->Branch( "num_diproton", &fDiprotonNum, "num_diproton/i" );
+  tree_->Branch( "diproton_mass", fDiprotonM, "diproton_mass[num_diproton]/i" );
+  tree_->Branch( "diproton_rapidity", fDiprotonY, "diproton_rapidity[num_diproton]/i" );
+
   tree_->Branch( "num_diphoton", &fDiphotonNum, "num_diphoton/i" );
-  tree_->Branch( "diphoton_photon1", fDiphotonPhoton1, "diphoton_photon1[num_diphoton]/i" );
-  tree_->Branch( "diphoton_photon2", fDiphotonPhoton2, "diphoton_photon2[num_diphoton]/i" );
+  tree_->Branch( "diphoton_pt1", fDiphotonPt1, "diphoton_pt1[num_diphoton]/i" );
+  tree_->Branch( "diphoton_pt2", fDiphotonPt2, "diphoton_pt2[num_diphoton]/i" );
+  tree_->Branch( "diphoton_eta1", fDiphotonEta1, "diphoton_eta1[num_diphoton]/i" );
+  tree_->Branch( "diphoton_eta2", fDiphotonEta2, "diphoton_eta2[num_diphoton]/i" );
+  tree_->Branch( "diphoton_phi1", fDiphotonPhi1, "diphoton_phi1[num_diphoton]/i" );
+  tree_->Branch( "diphoton_phi2", fDiphotonPhi2, "diphoton_phi2[num_diphoton]/i" );
+  tree_->Branch( "diphoton_r91", fDiphotonR91, "diphoton_r91[num_diphoton]/i" );
+  tree_->Branch( "diphoton_r92", fDiphotonR92, "diphoton_r92[num_diphoton]/i" );
   tree_->Branch( "diphoton_mass", fDiphotonM, "diphoton_mass[num_diphoton]/F" );
   tree_->Branch( "diphoton_rapidity", fDiphotonY, "diphoton_rapidity[num_diphoton]/F" );
   tree_->Branch( "diphoton_pt", fDiphotonPt, "diphoton_pt[num_diphoton]/F" );
   tree_->Branch( "diphoton_dphi", fDiphotonDphi, "diphoton_dphi[num_diphoton]/F" );
 
-  tree_->Branch( "num_diproton", &fDiprotonNum, "num_diproton/i" );
-  tree_->Branch( "diproton_proton1", fDiprotonProton1, "diproton_proton1[num_diproton]/i" );
-  tree_->Branch( "diproton_proton2", fDiprotonProton2, "diproton_proton2[num_diproton]/i" );
-  tree_->Branch( "diproton_mass", fDiprotonM, "diproton_mass[num_diproton]/F" );
-  tree_->Branch( "diproton_rapidity", fDiprotonY, "diproton_rapidity[num_diproton]/F" );
-
   tree_->Branch( "met", &fMET );
-
 
 }
 
