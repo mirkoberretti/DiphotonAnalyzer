@@ -97,12 +97,13 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     float fDiphotonM[MAX_DIPHOTON], fDiphotonY[MAX_DIPHOTON];
     float fDiphotonPt[MAX_DIPHOTON], fDiphotonDphi[MAX_DIPHOTON];
 
+    unsigned int fDiphotonVertexTracks[MAX_DIPHOTON], fDiphotonVerticesAt2mmDist[MAX_DIPHOTON];
+    float fDiphotonVertexX[MAX_DIPHOTON], fDiphotonVertexY[MAX_DIPHOTON], fDiphotonVertexZ[MAX_DIPHOTON];
+    float fDiphotonNearestDist[MAX_DIPHOTON];
+
     float fMET;
 
     unsigned int fVertexNum;
-    unsigned int fDiphotonVertexTracks;
-    float fDiphotonVertexX, fDiphotonVertexY, fDiphotonVertexZ;
-    float fDiphotonNearestDist;
 
 };
 
@@ -179,14 +180,14 @@ TreeProducer::clearTree()
     fDiphotonPhi1[i] = fDiphotonPhi2[i] = 0.;
     fDiphotonR91[i] = fDiphotonR92[i] = 0.;
     fDiphotonM[i] = fDiphotonY[i] = fDiphotonPt[i] = fDiphotonDphi[i] = 0.;
+    fDiphotonVertexTracks[i] = fDiphotonVerticesAt2mmDist[i] = 0;
+    fDiphotonVertexX[i] = fDiphotonVertexY[i] = fDiphotonVertexZ[i] = 0.;
+    fDiphotonNearestDist[i] = 999.;
   }
 
   fMET = 0.;
 
   fVertexNum = 0;
-  fDiphotonVertexTracks = 0;
-  fDiphotonVertexX = fDiphotonVertexY = fDiphotonVertexZ = 0.;
-  fDiphotonNearestDist = 0.;
 
 }
 
@@ -204,37 +205,14 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   fLumiSection = iEvent.luminosityBlock();
   fEventNum = iEvent.id().event();
 
-  // fetch the proton collection from EDM file
-  edm::Handle< edm::View<flashgg::Proton> > protons;
-  iEvent.getByToken(protonToken_, protons);
-
-  fProtonNum = fDiprotonNum = 0;
-  for ( unsigned int i=0; i<protons->size(); i++ ) {
-    edm::Ptr<flashgg::Proton> proton = protons->ptrAt( i );
-
-    fProtonXi[i] = proton->xi();
-    fProtonSide[i] = proton->side();
-
-    for ( unsigned int j=i+1; j<protons->size(); j++ ) {
-      edm::Ptr<flashgg::Proton> proton2 = protons->ptrAt( j );
-      if ( proton2->side()==proton->side() ) continue;
-      fDiprotonM[fDiprotonNum] = sqrtS_*sqrt( proton->xi()*proton2->xi() );
-      fDiprotonY[fDiprotonNum] = log( proton2->xi()/proton->xi() )/2.;
-
-      fDiprotonNum++;
-    }
-
-    fProtonNum++;
-  }
-
   // fetch the diphoton collection from EDM file
   edm::Handle< edm::View<flashgg::DiPhotonCandidate> > diphotons;
   iEvent.getByToken(diphotonToken_, diphotons);
 
   fDiphotonNum = 0;
-  edm::Ptr<reco::Vertex> diphoton_vtx;
+  edm::Ptr<reco::Vertex> diphoton_vtx[MAX_DIPHOTON];
 
-  for ( unsigned int i=0; i<diphotons->size(); i++ ) {
+  for ( unsigned int i=0; i<diphotons->size() && fDiphotonNum<MAX_DIPHOTON; i++ ) {
     edm::Ptr<flashgg::DiPhotonCandidate> diphoton = diphotons->ptrAt( i );
 
     if ( diphoton->leadPhotonId()<-0.9 ) continue;
@@ -249,11 +227,11 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     if ( diphoton->mass()<photonPairMinMass_ ) continue;
 
-    diphoton_vtx = diphoton->vtx();
-    fDiphotonVertexTracks = diphoton_vtx->tracksSize();
-    fDiphotonVertexX = diphoton_vtx->x();
-    fDiphotonVertexY = diphoton_vtx->y();
-    fDiphotonVertexZ = diphoton_vtx->z();
+    fDiphotonVertexTracks[fDiphotonNum] = diphoton->vtx()->tracksSize();
+    fDiphotonVertexX[fDiphotonNum] = diphoton->vtx()->x();
+    fDiphotonVertexY[fDiphotonNum] = diphoton->vtx()->y();
+    fDiphotonVertexZ[fDiphotonNum] = diphoton->vtx()->z();
+    diphoton_vtx[fDiphotonNum] = diphoton->vtx();
 
     fDiphotonPt1[fDiphotonNum] = diphoton->leadingPhoton()->pt();
     fDiphotonEta1[fDiphotonNum] = diphoton->leadingPhoton()->eta();
@@ -274,14 +252,37 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     while ( dphi> TMath::Pi() ) dphi -= 2.*TMath::Pi();
     fDiphotonDphi[fDiphotonNum] = dphi;
 
-    std::cout << fDiphotonPt1[fDiphotonNum] << " --- " << fDiphotonPt2[fDiphotonNum] << " --- " << fDiphotonM[fDiphotonNum] << std::endl;
+    //std::cout << fDiphotonPt1[fDiphotonNum] << " --- " << fDiphotonPt2[fDiphotonNum] << " --- " << fDiphotonM[fDiphotonNum] << std::endl;
 
     fDiphotonNum++;
   }
 
   if ( fDiphotonNum<1 ) return;
 
-std::cout << "---> " << fDiphotonNum << std::endl;
+  // fetch the proton collection from EDM file
+  edm::Handle< edm::View<flashgg::Proton> > protons;
+  iEvent.getByToken(protonToken_, protons);
+
+  fProtonNum = fDiprotonNum = 0;
+  for ( unsigned int i=0; i<protons->size() && fProtonNum<MAX_PROTON; i++ ) {
+    edm::Ptr<flashgg::Proton> proton = protons->ptrAt( i );
+
+    fProtonXi[i] = proton->xi();
+    fProtonSide[i] = proton->side();
+
+    for ( unsigned int j=i+1; j<protons->size() && fDiprotonNum<MAX_DIPROTON; j++ ) {
+      edm::Ptr<flashgg::Proton> proton2 = protons->ptrAt( j );
+      if ( proton2->side()==proton->side() ) continue;
+      fDiprotonM[fDiprotonNum] = sqrtS_*sqrt( proton->xi()*proton2->xi() );
+      fDiprotonY[fDiprotonNum] = log( proton2->xi()/proton->xi() )/2.;
+
+      fDiprotonNum++;
+    }
+
+    fProtonNum++;
+  }
+
+  std::cout << "# found " << fDiphotonNum << " diphoton candidate(s) with " << fProtonNum << " proton(s)!" << std::endl;
   // retrieve the missing ET
   edm::Handle< edm::View<pat::MET> > mets;
   iEvent.getByToken( metToken_, mets );
@@ -294,15 +295,18 @@ std::cout << "---> " << fDiphotonNum << std::endl;
   iEvent.getByToken( vtxToken_, vertices );
   fVertexNum = vertices->size();
 
-  float mindist_vtx = 999.;
   for ( unsigned int i=0; i<vertices->size(); i++ ) {
     edm::Ptr<reco::Vertex> vtx = vertices->ptrAt( i );
-    if ( diphoton_vtx->isValid() and diphoton_vtx->position()==vtx->position() ) continue; // found the diphoton vertex
+    if ( !vtx->isValid() ) continue;
 
-    const float vtx_dist = sqrt( pow( diphoton_vtx->x()-vtx->x(), 2 )+pow( diphoton_vtx->y()-vtx->y(), 2 )+pow( diphoton_vtx->z()-vtx->z(), 2 ) );
-    if ( vtx_dist<mindist_vtx ) mindist_vtx = vtx_dist;
+    // loop over all the diphoton candidates to find the closest vertices
+    for ( unsigned int j=0; j<fDiphotonNum; j++ ) {
+      if ( diphoton_vtx[j]->position()==vtx->position() ) continue; // found the diphoton vertex
+      const float vtx_dist = sqrt( pow( diphoton_vtx[j]->x()-vtx->x(), 2 )+pow( diphoton_vtx[j]->y()-vtx->y(), 2 )+pow( diphoton_vtx[j]->z()-vtx->z(), 2 ) );
+      if ( vtx_dist<fDiphotonNearestDist[j] ) fDiphotonNearestDist[j] = vtx_dist;
+      if ( vtx_dist<=0.2 ) fDiphotonVerticesAt2mmDist[j]++;
+    }
   }
-  fDiphotonNearestDist = mindist_vtx;
 
   tree_->Fill();
 }
@@ -322,8 +326,8 @@ TreeProducer::beginJob()
   tree_->Branch( "proton_side", fProtonSide, "proton_side[num_proton]/i" );
 
   tree_->Branch( "num_diproton", &fDiprotonNum, "num_diproton/i" );
-  tree_->Branch( "diproton_mass", fDiprotonM, "diproton_mass[num_diproton]/i" );
-  tree_->Branch( "diproton_rapidity", fDiprotonY, "diproton_rapidity[num_diproton]/i" );
+  tree_->Branch( "diproton_mass", fDiprotonM, "diproton_mass[num_diproton]/F" );
+  tree_->Branch( "diproton_rapidity", fDiprotonY, "diproton_rapidity[num_diproton]/F" );
 
   tree_->Branch( "num_diphoton", &fDiphotonNum, "num_diphoton/i" );
   tree_->Branch( "diphoton_pt1", fDiphotonPt1, "diphoton_pt1[num_diphoton]/F" );
@@ -339,12 +343,14 @@ TreeProducer::beginJob()
   tree_->Branch( "diphoton_pt", fDiphotonPt, "diphoton_pt[num_diphoton]/F" );
   tree_->Branch( "diphoton_dphi", fDiphotonDphi, "diphoton_dphi[num_diphoton]/F" );
 
+  tree_->Branch( "diphoton_vertex_tracks", fDiphotonVertexTracks, "diphoton_vertex_tracks[num_diphoton]/i" );
+  tree_->Branch( "diphoton_vertex_x", fDiphotonVertexX, "diphoton_vertex_x[num_diphoton]/F" );
+  tree_->Branch( "diphoton_vertex_y", fDiphotonVertexY, "diphoton_vertex_y[num_diphoton]/F" );
+  tree_->Branch( "diphoton_vertex_z", fDiphotonVertexZ, "diphoton_vertex_z[num_diphoton]/F" );
+  tree_->Branch( "diphoton_vertex_nearestvtxdist", fDiphotonNearestDist, "diphoton_vertex_nearestvtxdist[num_diphoton]/F" );
+  tree_->Branch( "diphoton_vertex_vtx2mmdist", fDiphotonVerticesAt2mmDist, "diphoton_vertex_vtx2mmdist[num_diphoton]/i" );
+
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
-  tree_->Branch( "diphoton_vertex_tracks", &fDiphotonVertexTracks, "diphoton_vertex_tracks/i" );
-  tree_->Branch( "diphoton_vertex_x", &fDiphotonVertexX, "diphoton_vertex_x/F" );
-  tree_->Branch( "diphoton_vertex_y", &fDiphotonVertexY, "diphoton_vertex_y/F" );
-  tree_->Branch( "diphoton_vertex_z", &fDiphotonVertexZ, "diphoton_vertex_z/F" );
-  tree_->Branch( "diphoton_vertex_nearestvtxdist", &fDiphotonNearestDist, "diphoton_vertex_nearestvtxdist/F" );
 
   tree_->Branch( "met", &fMET );
 
