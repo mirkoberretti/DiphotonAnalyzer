@@ -67,8 +67,8 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
     edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
-    edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
     edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
+    edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
     double sqrtS_;
     double singlePhotonMinPt_, singlePhotonMaxEta_, singlePhotonMinR9_;
     double photonPairMinMass_;
@@ -97,7 +97,8 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     float fDiphotonM[MAX_DIPHOTON], fDiphotonY[MAX_DIPHOTON];
     float fDiphotonPt[MAX_DIPHOTON], fDiphotonDphi[MAX_DIPHOTON];
 
-    unsigned int fDiphotonVertexTracks[MAX_DIPHOTON], fDiphotonVerticesAt2mmDist[MAX_DIPHOTON];
+    unsigned int fDiphotonVertexTracks[MAX_DIPHOTON];
+    unsigned int fDiphotonVerticesAt1mmDist[MAX_DIPHOTON], fDiphotonVerticesAt2mmDist[MAX_DIPHOTON], fDiphotonVerticesAt5mmDist[MAX_DIPHOTON], fDiphotonVerticesAt1cmDist[MAX_DIPHOTON];
     float fDiphotonVertexX[MAX_DIPHOTON], fDiphotonVertexY[MAX_DIPHOTON], fDiphotonVertexZ[MAX_DIPHOTON];
     float fDiphotonNearestDist[MAX_DIPHOTON];
 
@@ -120,9 +121,9 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 //
 TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
   diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
-  protonToken_  ( consumes< edm::View<flashgg::Proton> >           ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
-  metToken_     ( consumes< edm::View<pat::MET> >                  ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
-  vtxToken_     ( consumes< edm::View<reco::Vertex> >              ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
+  protonToken_  ( mayConsume< edm::View<flashgg::Proton> >         ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
+  vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
+  metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
   sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
   singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
   singlePhotonMaxEta_( iConfig.getParameter<double>( "maxEtaSinglePhoton" ) ),
@@ -180,7 +181,8 @@ TreeProducer::clearTree()
     fDiphotonPhi1[i] = fDiphotonPhi2[i] = 0.;
     fDiphotonR91[i] = fDiphotonR92[i] = 0.;
     fDiphotonM[i] = fDiphotonY[i] = fDiphotonPt[i] = fDiphotonDphi[i] = 0.;
-    fDiphotonVertexTracks[i] = fDiphotonVerticesAt2mmDist[i] = 0;
+    fDiphotonVertexTracks[i] = 0;
+    fDiphotonVerticesAt1mmDist[i] = fDiphotonVerticesAt2mmDist[i] = fDiphotonVerticesAt5mmDist[i] = fDiphotonVerticesAt1cmDist[i] = 0;
     fDiphotonVertexX[i] = fDiphotonVertexY[i] = fDiphotonVertexZ[i] = 0.;
     fDiphotonNearestDist[i] = 999.;
   }
@@ -304,7 +306,10 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
       if ( diphoton_vtx[j]->position()==vtx->position() ) continue; // found the diphoton vertex
       const float vtx_dist = sqrt( pow( diphoton_vtx[j]->x()-vtx->x(), 2 )+pow( diphoton_vtx[j]->y()-vtx->y(), 2 )+pow( diphoton_vtx[j]->z()-vtx->z(), 2 ) );
       if ( vtx_dist<fDiphotonNearestDist[j] ) fDiphotonNearestDist[j] = vtx_dist;
+      if ( vtx_dist<=0.1 ) fDiphotonVerticesAt1mmDist[j]++;
       if ( vtx_dist<=0.2 ) fDiphotonVerticesAt2mmDist[j]++;
+      if ( vtx_dist<=0.5 ) fDiphotonVerticesAt5mmDist[j]++;
+      if ( vtx_dist<=1.0 ) fDiphotonVerticesAt1cmDist[j]++;
     }
   }
 
@@ -348,7 +353,10 @@ TreeProducer::beginJob()
   tree_->Branch( "diphoton_vertex_y", fDiphotonVertexY, "diphoton_vertex_y[num_diphoton]/F" );
   tree_->Branch( "diphoton_vertex_z", fDiphotonVertexZ, "diphoton_vertex_z[num_diphoton]/F" );
   tree_->Branch( "diphoton_vertex_nearestvtxdist", fDiphotonNearestDist, "diphoton_vertex_nearestvtxdist[num_diphoton]/F" );
+  tree_->Branch( "diphoton_vertex_vtx1mmdist", fDiphotonVerticesAt1mmDist, "diphoton_vertex_vtx1mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx2mmdist", fDiphotonVerticesAt2mmDist, "diphoton_vertex_vtx2mmdist[num_diphoton]/i" );
+  tree_->Branch( "diphoton_vertex_vtx5mmdist", fDiphotonVerticesAt5mmDist, "diphoton_vertex_vtx5mmdist[num_diphoton]/i" );
+  tree_->Branch( "diphoton_vertex_vtx1cmdist", fDiphotonVerticesAt1cmDist, "diphoton_vertex_vtx1cmdist[num_diphoton]/i" );
 
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 
