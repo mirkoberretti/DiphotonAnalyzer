@@ -1,12 +1,14 @@
 import FWCore.ParameterSet.Config as cms
 
-eventAnalyzer = cms.EDAnalyzer('EventAnalyzer',
+treeProducer = cms.EDAnalyzer('TreeProducer',
     sqrtS = cms.double(13.e3),
     metLabel = cms.InputTag('slimmedMETs'),
-    diphotonwithprotonLabel = cms.InputTag('flashggDiProtonsDiPhotons'),
     diphotonLabel = cms.InputTag('flashggDiPhotons'),
+    protonLabel = cms.InputTag('flashggProtons'),
+    vertexLabel = cms.InputTag('offlineSlimmedPrimaryVertices'),
     minPtSinglePhoton = cms.double(50.),
     minR9SinglePhoton = cms.double(0.94),
     maxEtaSinglePhoton = cms.double(2.5),
     minMassDiPhoton = cms.double(500.),
+    outputFilename = cms.string('output.root'),
 )

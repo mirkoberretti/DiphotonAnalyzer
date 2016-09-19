@@ -24,19 +24,13 @@ process.hltHighLevel.TriggerResultsTag = cms.InputTag("TriggerResults","","HLT")
 process.hltHighLevel.HLTPaths = ['HLT_DoublePhoton60*', 'HLT_DoublePhoton85*']
 process.hltHighLevel.throw = cms.bool(False)
 
-process.load('DiphotonAnalyzer.EventAnalyzer.EventAnalyzer_cfi')
+process.load('DiphotonAnalyzer.EventAnalyzer.TreeProducer_cfi')
 
 # set some parameters to the run
-process.eventAnalyzer.minPtSinglePhoton = cms.double(75.)
-process.eventAnalyzer.minMassDiPhoton = cms.double(500.)
-
-# prepare the output file
-process.TFileService = cms.Service("TFileService", 
-    fileName = cms.string("histo.root"),
-    closeFileFast = cms.untracked.bool(True)
-)
+process.treeProducer.minPtSinglePhoton = cms.double(75.)
+process.treeProducer.minMassDiPhoton = cms.double(500.)
 
 process.p = cms.Path(
     process.hltHighLevel*
-    process.eventAnalyzer
+    process.treeProducer
 )
