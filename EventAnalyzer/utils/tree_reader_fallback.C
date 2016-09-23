@@ -1,5 +1,7 @@
 #include "Canvas.h"
 
+#define out_path "/afs/cern.ch/user/l/lforthom/www/private/twophoton/"
+
 void plot_3hists( const char* name, const char* top_label, TH1* h, TH1* h_1tag, TH1* h_2tag )
 {
   Canvas c( name, top_label, true );
@@ -20,8 +22,31 @@ void plot_3hists( const char* name, const char* top_label, TH1* h, TH1* h_1tag, 
   c.AddLegendEntry( h_2tag, "#geq 2 proton tags", "ep" );
   c.Prettify( h );
   c.RatioPlot( h, h_1tag, h_2tag, 0., 0.55 );
-  c.Save( "png", "/afs/cern.ch/user/l/lforthom/www/private/twophoton/" );
-  c.Save( "pdf", "/afs/cern.ch/user/l/lforthom/www/private/twophoton/" );
+  //c.Save( "png", out_path );
+  c.Save( "pdf", out_path );
+  c.Save( "pdf", out_path );
+  //c.Save( "png", out_path );
+}
+
+void plot_balances( const char* name, const char* top_label, TH2* h2, TH2* h2_mtag, TH2* h2_ytag )
+{
+  Canvas c( name, top_label );
+  h2->Draw( "p" );
+  h2->SetMarkerStyle( 24 );
+  h2_mtag->Draw( "p same" );
+  h2_mtag->SetMarkerStyle( 20 );
+  h2_mtag->SetMarkerColor( kRed+1 );
+  h2_ytag->Draw( "p same" );
+  h2_ytag->SetMarkerStyle( 31 );
+  h2_ytag->SetMarkerSize( .75 );
+  h2_ytag->SetMarkerColor( kGreen+2 );
+  c.AddLegendEntry( h2, "All candidates", "p" );
+  c.AddLegendEntry( h2_mtag, "Mass matching", "p" );
+  c.AddLegendEntry( h2_ytag, "Rapidity matching", "p" );
+  c.DrawDiagonal( h2 );
+  c.Prettify( h2 );
+  c.Save( "pdf", out_path );
+  c.Save( "png", out_path );
 }
 
 void tree_reader_fallback( TString file="run2016BB_17sep.root" )
@@ -83,12 +108,26 @@ void tree_reader_fallback( TString file="run2016BB_17sep.root" )
   tr->SetBranchAddress( "met", &met );
 
   TH1D* h_num_proton = new TH1D( "num_proton", "Number of protons reconstructed in event\\Events", 6, 0., 6. );
+  TH1D* h_mpp_over_mgg = new TH1D( "mpp_over_mgg", "m_{pp}^{missing} / m_{#gamma#gamma} for double-tag events\\Events\\?.2f", 30, -2., 4. ),
+       *h_ypp_over_ygg = new TH1D( "ypp_over_ygg", "|y_{pp}^{missing}| / |y_{#gamma#gamma}| for double-tag events\\Events\\?.2f", 30, -2., 4. );
   TH1D* h_met = new TH1D( "met", "Missing E_{T}\\Events\\GeV?.0f", 48, 0., 240. ),
        *h_met_1tag = (TH1D*)h_met->Clone( "met_1tag" ),
        *h_met_2tag = (TH1D*)h_met->Clone( "met_2tag" );
   TH1D* h_diphoton_pt = new TH1D( "diphoton_pt", "Diphoton p_{T}\\Events\\GeV?.0f", 40, 0., 400. ),
        *h_diphoton_pt_1tag = (TH1D*)h_diphoton_pt->Clone( "diphoton_pt_1tag" ),
        *h_diphoton_pt_2tag = (TH1D*)h_diphoton_pt->Clone( "diphoton_pt_2tag" );
+  TH1D* h_diphoton_leadpt = new TH1D( "leadphoton_pt", "Leading photon p_{T}\\Events\\GeV?.0f", 35, 50., 750. ),
+       *h_diphoton_leadpt_1tag = (TH1D*)h_diphoton_leadpt->Clone( "leadphoton_pt_1tag" ),
+       *h_diphoton_leadpt_2tag = (TH1D*)h_diphoton_leadpt->Clone( "leadphoton_pt_2tag" );
+  TH1D* h_diphoton_subleadpt = new TH1D( "subleadphoton_pt", "Subleading photon p_{T}\\Events\\GeV?.0f", 35, 50., 750. ),
+       *h_diphoton_subleadpt_1tag = (TH1D*)h_diphoton_subleadpt->Clone( "subleadphoton_pt_1tag" ),
+       *h_diphoton_subleadpt_2tag = (TH1D*)h_diphoton_subleadpt->Clone( "subleadphoton_pt_2tag" );
+  TH1D* h_diphoton_leadeta = new TH1D( "leadphoton_eta", "Leading photon #eta\\Events\\?.3f", 40, -2.5, 2.5 ),
+       *h_diphoton_leadeta_1tag = (TH1D*)h_diphoton_leadeta->Clone( "leadphoton_eta_1tag" ),
+       *h_diphoton_leadeta_2tag = (TH1D*)h_diphoton_leadeta->Clone( "leadphoton_eta_2tag" );
+  TH1D* h_diphoton_subleadeta = new TH1D( "subleadphoton_eta", "Subleading photon #eta\\Events\\?.3f", 40, -2.5, 2.5 ),
+       *h_diphoton_subleadeta_1tag = (TH1D*)h_diphoton_subleadeta->Clone( "subleadphoton_eta_1tag" ),
+       *h_diphoton_subleadeta_2tag = (TH1D*)h_diphoton_subleadeta->Clone( "subleadphoton_eta_2tag" );
   TH1D* h_diphoton_dphi = new TH1D( "diphoton_dphi", "Diphoton 1-|#Delta#phi/#pi|\\Events\\?.2f", 50, 0., 1. ),
        *h_diphoton_dphi_1tag = (TH1D*)h_diphoton_dphi->Clone( "diphoton_dphi_1tag" ),
        *h_diphoton_dphi_2tag = (TH1D*)h_diphoton_dphi->Clone( "diphoton_dphi_2tag" );
@@ -113,21 +152,27 @@ void tree_reader_fallback( TString file="run2016BB_17sep.root" )
        *h_diphoton_closestvtx_2tag = (TH1D*)h_diphoton_closestvtx->Clone( "diphoton_closestvtx_2tag" );
   TH2D* h_met_vs_pt = new TH2D( "met_vs_pt", "Missing E_{T} (GeV)\\Diphoton p_{T} (GeV)", 40, 0., 400., 40, 0., 400. );
   TH2D* h_ygg_vs_ypp = new TH2D( "ygg_vs_ypp", "Diphoton rapidity\\Diproton rapidity", 600, -3., 3., 600, -3., 3. ),
-       *h_ygg_vs_ypp_cand = (TH2D*)h_ygg_vs_ypp->Clone("ygg_vs_ypp_cand");
+       *h_ygg_vs_ypp_candm = (TH2D*)h_ygg_vs_ypp->Clone("ygg_vs_ypp_candm"),
+       *h_ygg_vs_ypp_candy = (TH2D*)h_ygg_vs_ypp->Clone("ygg_vs_ypp_candy");
   TH2D* h_mgg_vs_mpp = new TH2D( "mgg_vs_mpp", "Diphoton mass (GeV)\\Diproton missing mass (GeV)", 1750, 250., 2000., 1750, 250., 2000. ),
-       *h_mgg_vs_mpp_cand = (TH2D*)h_mgg_vs_mpp->Clone("mgg_vs_mpp_cand");
-  TH2D* h_xi1gg_vs_xi1pp = new TH2D( "xi1gg_vs_xi1pp", "#xi_{1} from diphoton system\\Proton #xi_{1}", 500, 0., 0.5, 500, 0., 0.5 ),
-       *h_xi1gg_vs_xi1pp_cand = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1gg_vs_xi1pp_cand" ),
-       *h_xi2gg_vs_xi2pp = new TH2D( "xi2gg_vs_xi2pp", "#xi_{2} from diphoton system\\Proton #xi_{2}", 500, 0., 0.5, 500, 0., 0.5 ),
-       *h_xi2gg_vs_xi2pp_cand = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2gg_vs_xi2pp_cand" );
+       *h_mgg_vs_mpp_candm = (TH2D*)h_mgg_vs_mpp->Clone("mgg_vs_mpp_candm"),
+       *h_mgg_vs_mpp_candy = (TH2D*)h_mgg_vs_mpp->Clone("mgg_vs_mpp_candy");
+  TH2D* h_xi1gg_vs_xi1pp = new TH2D( "xi1gg_vs_xi1pp", "#xi_{1} from diphoton system\\Proton #xi_{1}", 1000, 0., 0.5, 1000, 0., 0.5 ),
+       *h_xi1gg_vs_xi1pp_candm = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1gg_vs_xi1pp_candm" ),
+       *h_xi1gg_vs_xi1pp_candy = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1gg_vs_xi1pp_candy" ),
+       *h_xi2gg_vs_xi2pp = new TH2D( "xi2gg_vs_xi2pp", "#xi_{2} from diphoton system\\Proton #xi_{2}", 1000, 0., 0.5, 1000, 0., 0.5 ),
+       *h_xi2gg_vs_xi2pp_candm = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2gg_vs_xi2pp_candm" ),
+       *h_xi2gg_vs_xi2pp_candy = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2gg_vs_xi2pp_candy" );
 
   ofstream events_list( "events_list_2016BC.txt" );
 
+  const double rel_err_xi = 0.15; // 15% error on xi determination
+
+  unsigned int num_evts_notag = 0, num_evts_with_tag = 0;
   // tree readout stage
   for ( unsigned int i=0; i<tr->GetEntries(); i++ ) {
     tr->GetEntry( i );
     // dump the list of events in a text file
-    events_list << run_id << ":" << lumisection << ":" << event_number << endl;
 
     h_num_proton->Fill( num_proton );
     unsigned int num_1tag = 0, num_2tag = 0;
@@ -166,6 +211,10 @@ void tree_reader_fallback( TString file="run2016BB_17sep.root" )
       h_diphoton_closestvtx->Fill( diphoton_vertex_nearestvtxdist[j] );
       h_diphoton_ntrk->Fill( diphoton_vertex_tracks[j] );
       h_diphoton_dphi->Fill( 1-fabs( diphoton_dphi[j]/TMath::Pi() ) );
+      h_diphoton_leadpt->Fill( diphoton_pt1[j] );
+      h_diphoton_subleadpt->Fill( diphoton_pt2[j] );
+      h_diphoton_leadeta->Fill( diphoton_eta1[j] );
+      h_diphoton_subleadeta->Fill( diphoton_eta2[j] );
       if ( num_1tag>0 ) {
         h_diphoton_pt_1tag->Fill( diphoton_pt[j] );
         h_diphoton_mass_1tag->Fill( diphoton_mass[j] );
@@ -173,6 +222,10 @@ void tree_reader_fallback( TString file="run2016BB_17sep.root" )
         h_diphoton_closestvtx_1tag->Fill( diphoton_vertex_nearestvtxdist[j] );
         h_diphoton_ntrk_1tag->Fill( diphoton_vertex_tracks[j] );
         h_diphoton_dphi_1tag->Fill( 1-fabs( diphoton_dphi[j]/TMath::Pi() ) );
+        h_diphoton_leadpt_1tag->Fill( diphoton_pt1[j] );
+        h_diphoton_subleadpt_1tag->Fill( diphoton_pt2[j] );
+        h_diphoton_leadeta_1tag->Fill( diphoton_eta1[j] );
+        h_diphoton_subleadeta_1tag->Fill( diphoton_eta2[j] );
       }
       if ( num_2tag>0 ) {
         h_diphoton_pt_2tag->Fill( diphoton_pt[j] );
@@ -181,32 +234,49 @@ void tree_reader_fallback( TString file="run2016BB_17sep.root" )
         h_diphoton_closestvtx_2tag->Fill( diphoton_vertex_nearestvtxdist[j] );
         h_diphoton_ntrk_2tag->Fill( diphoton_vertex_tracks[j] );
         h_diphoton_dphi_2tag->Fill( 1-fabs( diphoton_dphi[j]/TMath::Pi() ) );
+        h_diphoton_leadpt_2tag->Fill( diphoton_pt1[j] );
+        h_diphoton_subleadpt_2tag->Fill( diphoton_pt2[j] );
+        h_diphoton_leadeta_2tag->Fill( diphoton_eta1[j] );
+        h_diphoton_subleadeta_2tag->Fill( diphoton_eta2[j] );
 
         h_xi1gg_vs_xi1pp->Fill( xi_reco1, xi_prot1 );
         h_xi2gg_vs_xi2pp->Fill( xi_reco2, xi_prot2 );
+
+        events_list << run_id << ":" << lumisection << ":" << event_number << endl;
       }
 
       if ( num_diproton>0 ) {
         h_mgg_vs_mpp->Fill( diphoton_mass[j], max_diproton_mass );
         h_ygg_vs_ypp->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
-        if ( fabs( diphoton_mass[j]-max_diproton_mass )<diphoton_mass[j]*0.15 ) {
-          h_mgg_vs_mpp_cand->Fill( diphoton_mass[j], max_diproton_mass );
-          h_ygg_vs_ypp_cand->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
-          h_xi1gg_vs_xi1pp_cand->Fill( xi_reco1, xi_prot1 );
-          h_xi2gg_vs_xi2pp_cand->Fill( xi_reco2, xi_prot2 );
-if ( fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<0.1 ) {
+        h_mpp_over_mgg->Fill( max_diproton_mass/diphoton_mass[j] );
+        h_ypp_over_ygg->Fill( fabs( max_diproton_mass_rap )/fabs( diphoton_rapidity[j] ) );
+        if ( fabs( diphoton_mass[j]-max_diproton_mass )<diphoton_mass[j]*rel_err_xi ) {
+          h_mgg_vs_mpp_candm->Fill( diphoton_mass[j], max_diproton_mass );
+          h_ygg_vs_ypp_candm->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
+          h_xi1gg_vs_xi1pp_candm->Fill( xi_reco1, xi_prot1 );
+          h_xi2gg_vs_xi2pp_candm->Fill( xi_reco2, xi_prot2 );
 
-TLorentzVector p1, p2;
-p1.SetPtEtaPhiM( diphoton_pt1[j], diphoton_eta1[j], diphoton_phi1[j], 0. );
-p2.SetPtEtaPhiM( diphoton_pt2[j], diphoton_eta2[j], diphoton_phi2[j], 0. );
-cout << "---------> " << (p1+p2).M() << endl;
+          if ( fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
+            /*TLorentzVector p1, p2;
+            p1.SetPtEtaPhiM( diphoton_pt1[j], diphoton_eta1[j], diphoton_phi1[j], 0. );
+            p2.SetPtEtaPhiM( diphoton_pt2[j], diphoton_eta2[j], diphoton_phi2[j], 0. );
+            cout << "---------> " << (p1+p2).M() << endl;*/
 
-cout << " ---> event: " << run_id << ":" << lumisection << ":" << event_number << endl;
-cout << "      diphoton: pt=" << diphoton_pt[j] << ", mass=" << diphoton_mass[j] << ", dphi=" << diphoton_dphi[j] << "\t" << met << endl;
-cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_eta1[j] << ", phi=" << diphoton_phi1[j] << endl
-     << "                     pt=" << diphoton_pt2[j] << ", eta=" << diphoton_eta2[j] << ", phi=" << diphoton_phi2[j] << endl;
-}
+            cout << " ---> event: " << run_id << ":" << lumisection << ":" << event_number << endl;
+            cout << "      diphoton: pt=" << diphoton_pt[j] << ", mass=" << diphoton_mass[j] << ", rapidity=" << diphoton_rapidity[j] << ", dphi=" << diphoton_dphi[j] << endl
+                 << "      diproton: mass=" << max_diproton_mass << ", rapidity=" << max_diproton_mass_rap << endl
+                 << "      MET: " << met << endl;
+            cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_eta1[j] << ", phi=" << diphoton_phi1[j] << endl
+                 << "                     pt=" << diphoton_pt2[j] << ", eta=" << diphoton_eta2[j] << ", phi=" << diphoton_phi2[j] << endl;
+          }
         }
+        if ( fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
+          h_mgg_vs_mpp_candy->Fill( diphoton_mass[j], max_diproton_mass );
+          h_ygg_vs_ypp_candy->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
+          h_xi1gg_vs_xi1pp_candy->Fill( xi_reco1, xi_prot1 );
+          h_xi2gg_vs_xi2pp_candy->Fill( xi_reco2, xi_prot2 );
+        }
+        num_evts_with_tag++;
       }
 
       h_num_vtx_1mm->Fill( diphoton_vertex_vtx1mmdist[j] );
@@ -215,6 +285,8 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
       h_num_vtx_1cm->Fill( diphoton_vertex_vtx1cmdist[j] );
 
       h_met_vs_pt->Fill( met, diphoton_pt[j] );
+
+      num_evts_notag++;
     }
     h_num_vtx->Fill( num_vertex );
     h_met->Fill( met );
@@ -230,9 +302,11 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
   }
 
   // plotting stage
+  cout << "events: " << num_evts_notag << ", with tag: " << num_evts_with_tag << endl;
 
   const float lumi_b = 5.060924481910, // fb-1
-              lumi_c = 1.490748474431; // fb-1
+              lumi_c = 1.490748474431, // fb-1
+              lumi_g = 3.742171002882; // fb-1
 
   const float lumi = lumi_b+lumi_c;
   /*float lumi = 0.; string run_name;
@@ -250,6 +324,16 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
   {
     plot_3hists( "diphoton_mass", top_label, h_diphoton_mass, h_diphoton_mass_1tag, h_diphoton_mass_2tag );
     plot_3hists( "diphoton_pt", top_label, h_diphoton_pt, h_diphoton_pt_1tag, h_diphoton_pt_2tag );
+    plot_3hists( "diphoton_lead_pt", top_label, h_diphoton_leadpt, h_diphoton_leadpt_1tag, h_diphoton_leadpt_2tag );
+    plot_3hists( "diphoton_sublead_pt", top_label, h_diphoton_subleadpt, h_diphoton_subleadpt_1tag, h_diphoton_subleadpt_2tag );
+
+    /*h_diphoton_leadeta->GetYaxis()->SetRangeUser(0., 55.);
+    h_diphoton_subleadeta->GetYaxis()->SetRangeUser(0., 55.);*/
+    h_diphoton_leadeta->SetMinimum( 0. );
+    h_diphoton_subleadeta->SetMinimum( 0. );
+
+    plot_3hists( "diphoton_lead_eta", top_label, h_diphoton_leadeta, h_diphoton_leadeta_1tag, h_diphoton_leadeta_2tag );
+    plot_3hists( "diphoton_sublead_eta", top_label, h_diphoton_subleadeta, h_diphoton_subleadeta_1tag, h_diphoton_subleadeta_2tag );
     plot_3hists( "diphoton_dphi", top_label, h_diphoton_dphi, h_diphoton_dphi_1tag, h_diphoton_dphi_2tag );
     plot_3hists( "diphoton_rapidity", top_label, h_diphoton_rap, h_diphoton_rap_1tag, h_diphoton_rap_2tag );
     plot_3hists( "diphoton_closest_vtx", top_label, h_diphoton_closestvtx, h_diphoton_closestvtx_1tag, h_diphoton_closestvtx_2tag );
@@ -259,59 +343,24 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
   }
 
   {
-    Canvas c( "mass_balance", top_label );
-    h_mgg_vs_mpp->Draw( "p" );
-    h_mgg_vs_mpp->SetMarkerStyle( 24 );
-    h_mgg_vs_mpp_cand->Draw( "p same" );
-    h_mgg_vs_mpp_cand->SetMarkerStyle( 20 );
-    h_mgg_vs_mpp_cand->SetMarkerColor( kRed+1 );
-    c.Prettify( h_mgg_vs_mpp );
-    c.DrawDiagonal( h_mgg_vs_mpp );
-    c.Save( "png" );
-    c.Save( "pdf" );
+
+    cout << "total candidates: " << h_mgg_vs_mpp->Integral() << endl
+         << " -> with mass matching: " << h_mgg_vs_mpp_candm->Integral() << endl
+         << " -> with rapiditiy matching: " << h_mgg_vs_mpp_candy->Integral() << endl;
+
+    plot_balances( "mass_balance", top_label, h_mgg_vs_mpp, h_mgg_vs_mpp_candm, h_mgg_vs_mpp_candy );
+    plot_balances( "rapidity_balance", top_label, h_ygg_vs_ypp, h_ygg_vs_ypp_candm, h_ygg_vs_ypp_candy );
+    plot_balances( "xi1_balance", top_label, h_xi1gg_vs_xi1pp, h_xi1gg_vs_xi1pp_candm, h_xi1gg_vs_xi1pp_candy );
+    plot_balances( "xi2_balance", top_label, h_xi2gg_vs_xi2pp, h_xi2gg_vs_xi2pp_candm, h_xi2gg_vs_xi2pp_candy );
+
   }
-  {
-    Canvas c( "xi1_balance", top_label );
-    h_xi1gg_vs_xi1pp->Draw( "p" );
-    h_xi1gg_vs_xi1pp->SetMarkerStyle( 24 );
-    c.Prettify( h_xi1gg_vs_xi1pp );
-    h_xi1gg_vs_xi1pp_cand->Draw( "p same" );
-    h_xi1gg_vs_xi1pp_cand->SetMarkerStyle( 20 );
-    h_xi1gg_vs_xi1pp_cand->SetMarkerColor( kRed+1 );
-    c.DrawDiagonal( h_xi1gg_vs_xi1pp );
-    c.Save( "png" );
-    c.Save( "pdf" );
-  }
-  {
-    Canvas c( "xi2_balance", top_label );
-    h_xi2gg_vs_xi2pp->Draw( "p" );
-    h_xi2gg_vs_xi2pp->SetMarkerStyle( 24 );
-    c.Prettify( h_xi2gg_vs_xi2pp );
-    h_xi2gg_vs_xi2pp_cand->Draw( "p same" );
-    h_xi2gg_vs_xi2pp_cand->SetMarkerStyle( 20 );
-    h_xi2gg_vs_xi2pp_cand->SetMarkerColor( kRed+1 );
-    c.DrawDiagonal( h_xi2gg_vs_xi2pp );
-    c.Save( "png" );
-    c.Save( "pdf" );
-  }
-  {
-    Canvas c( "rapidity_balance", top_label );
-    h_ygg_vs_ypp->Draw( "p" );
-    h_ygg_vs_ypp->SetMarkerStyle( 24 );
-    c.Prettify( h_ygg_vs_ypp );
-    h_ygg_vs_ypp_cand->Draw( "p same" );
-    h_ygg_vs_ypp_cand->SetMarkerStyle( 20 );
-    h_ygg_vs_ypp_cand->SetMarkerColor( kRed+1 );
-    c.DrawDiagonal( h_ygg_vs_ypp );
-    c.Save( "png" );
-    c.Save( "pdf" );
-  }
+
   {
     Canvas c( "diphoton_pt_vs_met", top_label );
     h_met_vs_pt->Draw( "colz" );
     c.Prettify( h_met_vs_pt );
-    c.Save( "png" );
-    c.Save( "pdf" );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
   }
   {
     Canvas c( "num_close_vertex", top_label );
@@ -336,8 +385,8 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
     c.AddLegendEntry( h_num_vtx_1cm, "at 1 cm distance" );
     c.Prettify( h_num_vtx_1mm );
     c.SetLogy();
-    c.Save( "png" );
-    c.Save( "pdf" );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
   }
   {
     Canvas c( "num_proton", top_label );
@@ -345,8 +394,28 @@ cout << "      single photon: pt=" << diphoton_pt1[j] << ", eta=" << diphoton_et
     h_num_proton->Draw();
     h_num_proton->SetMarkerStyle( 20 );
     c.Prettify( h_num_proton );
-    c.Save( "png" );
-    c.Save( "pdf" );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
+  }
+  {
+    Canvas c( "mass_ratio", top_label );
+    h_mpp_over_mgg->Sumw2();
+    h_mpp_over_mgg->Draw();
+    h_mpp_over_mgg->SetMarkerStyle( 20 );
+    c.Prettify( h_mpp_over_mgg );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
+  }
+  {
+    Canvas c( "rapidity_ratio", top_label );
+    h_ypp_over_ygg->Sumw2();
+    h_ypp_over_ygg->Draw();
+    h_ypp_over_ygg->SetMarkerStyle( 20 );
+    c.Prettify( h_ypp_over_ygg );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
   }
 
 }
+
+//  LocalWords:  SetMarkerStyle

@@ -14,7 +14,7 @@ class Canvas : public TCanvas
     //TCanvas(name, "", 450, 450),
     TCanvas(name, "", 600, 600),
     fTitle(title), fTopLabel(0),
-    fLeg(0), fLegX1(0.5), fLegY1(0.7),
+    fLeg(0), fLegX1(0.5), fLegY1(0.75),
     fRatio(ratio)
   {
     Build();
@@ -118,7 +118,7 @@ class Canvas : public TCanvas
     if (!fTopLabel) BuildTopLabel();
     else fTopLabel->Clear();
     fTopLabel->AddText(fTitle);
-    fTopLabel->Draw();
+    //fTopLabel->Draw();
   }
 
   inline void SetLegendX1(double x) { fLegX1 = x; }
