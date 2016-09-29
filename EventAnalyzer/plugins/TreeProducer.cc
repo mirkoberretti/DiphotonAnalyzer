@@ -102,7 +102,7 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     float fDiphotonVertexX[MAX_DIPHOTON], fDiphotonVertexY[MAX_DIPHOTON], fDiphotonVertexZ[MAX_DIPHOTON];
     float fDiphotonNearestDist[MAX_DIPHOTON];
 
-    float fMET;
+    float fMET, fMETPhi;
 
     unsigned int fVertexNum;
 
@@ -187,7 +187,7 @@ TreeProducer::clearTree()
     fDiphotonNearestDist[i] = 999.;
   }
 
-  fMET = 0.;
+  fMET = fMETPhi = 0.;
 
   fVertexNum = 0;
 
@@ -292,6 +292,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   const edm::View<pat::MET>* metColl = mets.product();
   edm::View<pat::MET>::const_iterator met = metColl->begin();
   fMET = met->sumEt();
+  fMETPhi = met->phi();
 
   edm::Handle< edm::View<reco::Vertex> > vertices;
   iEvent.getByToken( vtxToken_, vertices );
@@ -361,6 +362,7 @@ TreeProducer::beginJob()
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 
   tree_->Branch( "met", &fMET );
+  tree_->Branch( "met_phi", &fMETPhi );
 
 }
 

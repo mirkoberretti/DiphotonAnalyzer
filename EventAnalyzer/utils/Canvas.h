@@ -71,12 +71,35 @@ class Canvas : public TCanvas
     }
   }
 
-  inline void DrawDiagonal(const TH1* obj) {
+  inline void DrawDiagonal(const TH1* obj, const float& x_resol=-1., const float& y_resol=-1., bool abs_unc=false) {
+    //FIXME to do: implement x resolution
+    const float min_x = obj->GetXaxis()->GetXmin(),
+                min_y = obj->GetYaxis()->GetXmin(),
+                max_x = obj->GetXaxis()->GetXmax(),
+                max_y = obj->GetYaxis()->GetXmax();
+    if (y_resol>0.) {
+      TGraph* sigmay_pm = new TGraph(4);
+      if (!abs_unc) {
+        sigmay_pm->SetPoint(0, min_x, min_y+y_resol*min_y);
+        sigmay_pm->SetPoint(1, max_x, max_y+y_resol*max_y);
+        sigmay_pm->SetPoint(2, max_x, max_y-y_resol*max_y);
+        sigmay_pm->SetPoint(3, min_x, min_y-y_resol*min_y);
+      }
+      else {
+        sigmay_pm->SetPoint(0, min_x, min_y+y_resol);
+        sigmay_pm->SetPoint(1, max_x, max_y+y_resol);
+        sigmay_pm->SetPoint(2, max_x, max_y-y_resol);
+        sigmay_pm->SetPoint(3, min_x, min_y-y_resol);
+      }
+      sigmay_pm->SetFillColorAlpha(kBlack, 0.1);
+      //sigmay_pm->SetFillColor(18);
+      sigmay_pm->Draw("f");
+    }
     TLine l;
-    l.SetLineWidth( 2 );
+    l.SetLineWidth( 3 );
     l.SetLineColor( kGray );
     l.SetLineStyle( 2 );
-    l.DrawLine( obj->GetXaxis()->GetXmin(), obj->GetYaxis()->GetXmin(), obj->GetXaxis()->GetXmax(), obj->GetYaxis()->GetXmax() );
+    l.DrawLine( min_x, min_y, max_x, max_y );
   }
 
   inline void RatioPlot(TH1* obj1, const TH1* obj2, const TH1* obj3, float ymin=-999., float ymax=-999.) {
@@ -121,6 +144,7 @@ class Canvas : public TCanvas
     //fTopLabel->Draw();
   }
 
+  inline TLegend* GetLegend() { return fLeg; }
   inline void SetLegendX1(double x) { fLegX1 = x; }
   inline void SetLegendY1(double y) { fLegY1 = y; }
   inline void AddLegendEntry(const TObject* obj, const char* title, Option_t* option="lpf") {
@@ -135,8 +159,8 @@ class Canvas : public TCanvas
       }
     }
     TCanvas::cd();
-    if (fLeg) fLeg->Draw();
-    if (fTopLabel) fTopLabel->Draw();
+    if (fLeg and TCanvas::FindObject(fLeg)==0) fLeg->Draw();
+    if (fTopLabel and TCanvas::FindObject(fTopLabel)==0) fTopLabel->Draw();
     TCanvas::SaveAs(Form("%s/%s.%s", out_dir, TCanvas::GetName(), ext));
   }
 
@@ -182,6 +206,7 @@ class Canvas : public TCanvas
     if (fLeg) return;
     if (fRatio) TCanvas::cd(1);
     fLeg = new TLegend(fLegX1, fLegY1, fLegX1+0.3, fLegY1+0.15);
+    fLeg->SetFillStyle(0);
     fLeg->SetLineColor(kWhite);
     fLeg->SetLineWidth(0);
     fLeg->SetTextSize(0.04);
