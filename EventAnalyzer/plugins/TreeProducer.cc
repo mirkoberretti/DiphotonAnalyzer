@@ -67,6 +67,8 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
     edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
+//    edm::EDGetTokenT< edm::View<flashgg::> > leptonToken_;
+//    edm::EDGetTokenT< edm::View<flashgg::> > jetToken_; 
     edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
     edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
     double sqrtS_;
