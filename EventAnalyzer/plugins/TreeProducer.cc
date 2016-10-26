@@ -31,13 +31,13 @@
 
 #include "flashgg/DataFormats/interface/Proton.h"
 #include "flashgg/DataFormats/interface/DiPhotonCandidate.h"
+#include "DataFormats/PatCandidates/interface/MET.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
 //                               JW
 #include "flashgg/DataFormats/interface/Electron.h"
 #include "flashgg/DataFormats/interface/Muon.h"
 #include "flashgg/DataFormats/interface/Jet.h"
 //
-#include "DataFormats/PatCandidates/interface/MET.h"
-#include "DataFormats/VertexReco/interface/Vertex.h"
 
 #include "DiphotonAnalyzer/EventAnalyzer/interface/SelectionUtils.h"
 
