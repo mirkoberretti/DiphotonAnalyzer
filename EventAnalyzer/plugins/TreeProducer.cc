@@ -34,7 +34,7 @@
 //                               JW
 #include "flashgg/DataFormats/interface/Electron.h"
 #include "flashgg/DataFormats/interface/Muon.h"
-#inlcude "flashgg/DataFormats/interface/Jet.h"
+#include "flashgg/DataFormats/interface/Jet.h"
 //
 #include "DataFormats/PatCandidates/interface/MET.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
