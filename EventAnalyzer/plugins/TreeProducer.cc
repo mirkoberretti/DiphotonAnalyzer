@@ -51,6 +51,8 @@
 #define MAX_DIPHOTON 5
 //                               JW
 //#define MAX_ELECTRON 10
+//#define MAX_MUON 10
+//#define MAX_JET 100
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
   public:
@@ -313,6 +315,35 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //fElectronNum++;
  //}
  //
+ //Implementing muon 4 vector
+ //
+ //
+ //unsigned int fMuonNum;
+ //
+ //edm::Handle< edm::View<flashgg::Muon> > muons;
+ //iEvent.getByToken(muonToken_,muons);
+ //
+ //fMuonNum=0;
+ //for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
+ //fMuonP4[fMuonNum] = muon->p4();
+ //
+ //fMuonNum++;
+ //}
+ //
+ //Implementing jet 4 vector
+ //
+ //
+ //unsigned int fJetNum;
+ //
+ //edm::Handle< edm::View<flashgg::Jet> > jets;
+ //iEvent.getByToken(jetToken_,jets);
+ //
+ //fJetNum=0;
+ //for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
+ //fJetP4[fJetNum] = jet->p4();
+ //
+ //fJetNum++;
+ //}
 
   std::cout << "# found " << fDiphotonNum << " diphoton candidate(s) with " << fProtonNum << " proton(s)!" << std::endl;
   // retrieve the missing ET
