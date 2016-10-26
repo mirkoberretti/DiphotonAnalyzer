@@ -67,8 +67,9 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
     edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
-//    edm::EDGetTokenT< edm::View<flashgg::> > leptonToken_;
-//    edm::EDGetTokenT< edm::View<flashgg::> > jetToken_; 
+//    edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
+//    edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
+//    edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
     edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
     edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
     double sqrtS_;
@@ -126,6 +127,9 @@ TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
   protonToken_  ( mayConsume< edm::View<flashgg::Proton> >         ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
   vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
+//electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
+//muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
+//jetToken_     ( mayConsume< edm::View<flashgg::Jet> >            ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
   sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
   singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
   singlePhotonMaxEta_( iConfig.getParameter<double>( "maxEtaSinglePhoton" ) ),
