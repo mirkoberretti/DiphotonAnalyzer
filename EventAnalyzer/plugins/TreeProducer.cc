@@ -32,7 +32,8 @@
 #include "flashgg/DataFormats/interface/Proton.h"
 #include "flashgg/DataFormats/interface/DiPhotonCandidate.h"
 //                               JW
-//#include "flashgg/DataFormats/interface/Electron.h"
+#include "flashgg/DataFormats/interface/Electron.h"
+//
 #include "DataFormats/PatCandidates/interface/MET.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 
@@ -50,9 +51,10 @@
 #define MAX_DIPROTON 5
 #define MAX_DIPHOTON 5
 //                               JW
-//#define MAX_ELECTRON 10
-//#define MAX_MUON 10
-//#define MAX_JET 100
+#define MAX_ELECTRON 10
+#define MAX_MUON 10
+#define MAX_JET 100
+//
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
   public:
@@ -74,9 +76,10 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
 //                                 JW
-//    edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
-//    edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
-//    edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
+    edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
+    edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
+    edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
+//
     edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
     edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
     double sqrtS_;
@@ -135,9 +138,10 @@ TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
   vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
 //                               JW
-//electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
-//muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
-//jetToken_     ( mayConsume< edm::View<flashgg::Jet> >            ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
+electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
+muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
+jetToken_     ( mayConsume< edm::View<flashgg::Jet> >            ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
+//
   sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
   singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
   singlePhotonMaxEta_( iConfig.getParameter<double>( "maxEtaSinglePhoton" ) ),
@@ -299,52 +303,54 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
  
  //                               JW
- //
+ 
  //Implmenting electron 4 vector
- //
- //
- //unisgned int fElectronNum;
- //
- //edm::Handle< edm::View<flashgg::Electron> > electrons;
- //iEvent.getByToken(electronToken_, electrons);
- //
- //fElectronNum=0;
- //for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
- //fElectronP4[fElectronNum] = electron->p4();
- //
- //fElectronNum++;
- //}
- //
+ 
+ 
+ unisgned int fElectronNum;
+ 
+ edm::Handle< edm::View<flashgg::Electron> > electrons;
+ iEvent.getByToken(electronToken_, electrons);
+ 
+ fElectronNum=0;
+ for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
+ fElectronP4[fElectronNum] = electron->p4();
+ 
+ fElectronNum++;
+ }
+ 
  //Implementing muon 4 vector
- //
- //
- //unsigned int fMuonNum;
- //
- //edm::Handle< edm::View<flashgg::Muon> > muons;
- //iEvent.getByToken(muonToken_,muons);
- //
- //fMuonNum=0;
- //for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
- //fMuonP4[fMuonNum] = muon->p4();
- //
- //fMuonNum++;
- //}
- //
+ 
+ 
+ unsigned int fMuonNum;
+ 
+ edm::Handle< edm::View<flashgg::Muon> > muons;
+ iEvent.getByToken(muonToken_,muons);
+ 
+ fMuonNum=0;
+ for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
+ fMuonP4[fMuonNum] = muon->p4();
+ 
+ fMuonNum++;
+ }
+ 
  //Implementing jet 4 vector
+ 
+ 
+ unsigned int fJetNum;
+ 
+ edm::Handle< edm::View<flashgg::Jet> > jets;
+ iEvent.getByToken(jetToken_,jets);
+ 
+ fJetNum=0;
+ for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
+ fJetP4[fJetNum] = jet->p4();
+ 
+ fJetNum++;
+ }
+//
  //
- //
- //unsigned int fJetNum;
- //
- //edm::Handle< edm::View<flashgg::Jet> > jets;
- //iEvent.getByToken(jetToken_,jets);
- //
- //fJetNum=0;
- //for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
- //fJetP4[fJetNum] = jet->p4();
- //
- //fJetNum++;
- //}
-
+ 
   std::cout << "# found " << fDiphotonNum << " diphoton candidate(s) with " << fProtonNum << " proton(s)!" << std::endl;
   // retrieve the missing ET
   edm::Handle< edm::View<pat::MET> > mets;
