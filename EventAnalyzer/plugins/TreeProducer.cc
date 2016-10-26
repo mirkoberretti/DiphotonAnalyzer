@@ -31,6 +31,8 @@
 
 #include "flashgg/DataFormats/interface/Proton.h"
 #include "flashgg/DataFormats/interface/DiPhotonCandidate.h"
+//                               JW
+//#include "flashgg/DataFormats/interface/Electron.h"
 #include "DataFormats/PatCandidates/interface/MET.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 
@@ -47,6 +49,8 @@
 #define MAX_PROTON 10
 #define MAX_DIPROTON 5
 #define MAX_DIPHOTON 5
+//                               JW
+//#define MAX_ELECTRON 10
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
   public:
@@ -67,6 +71,7 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 
     edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
+//                                 JW
 //    edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
 //    edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
 //    edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
@@ -127,6 +132,7 @@ TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
   protonToken_  ( mayConsume< edm::View<flashgg::Proton> >         ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
   vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
+//                               JW
 //electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
 //muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
 //jetToken_     ( mayConsume< edm::View<flashgg::Jet> >            ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
@@ -289,6 +295,24 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     fProtonNum++;
   }
+ 
+ //                               JW
+ //
+ //Implmenting electron 4 vector
+ //
+ //
+ //unisgned int fElectronNum;
+ //
+ //edm::Handle< edm::View<flashgg::Electron> > electrons;
+ //iEvent.getByToken(electronToken_, electrons);
+ //
+ //fElectronNum=0;
+ //for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
+ //fElectronP4[fElectronNum] = electron->p4();
+ //
+ //fElectronNum++;
+ //}
+ //
 
   std::cout << "# found " << fDiphotonNum << " diphoton candidate(s) with " << fProtonNum << " proton(s)!" << std::endl;
   // retrieve the missing ET
