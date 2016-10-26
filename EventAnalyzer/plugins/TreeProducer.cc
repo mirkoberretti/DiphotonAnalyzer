@@ -74,16 +74,17 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     // ----------member data ---------------------------
 
     void clearTree();
-
-    edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
+    
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
+    edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
+    edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
+    edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
 //                                 JW
     edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
     edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
     edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
 //
-    edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
-    edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
+    
     double sqrtS_;
     double singlePhotonMinPt_, singlePhotonMaxEta_, singlePhotonMinR9_;
     double photonPairMinMass_;
@@ -135,10 +136,10 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 // constructors and destructor
 //
 TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
-  diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
   protonToken_  ( mayConsume< edm::View<flashgg::Proton> >         ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
-  vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
+  diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
+  vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
 //                               JW
 electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
 muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
