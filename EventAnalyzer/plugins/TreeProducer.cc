@@ -315,6 +315,11 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  edm::Handle< edm::View<flashgg::Electron> > electrons;
  iEvent.getByToken(electronToken_, electrons);
  
+ // fElectronVertexX[fElectronNum] = electron->vtx()->x();
+ // fElectronVertexY[fElectronNum] = electron->vtx()->y();
+ // fElectronVertexZ[fElectronNum] = electron->vtx()->z();
+ //   electron_vtx[fElectronNum] = electron->vtx();
+ 
  fElectronNum=0;
  for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
  fElectronP4[fElectronNum] = electron->p4();
