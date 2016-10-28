@@ -1,8 +1,10 @@
 #include "Canvas.h"
 
 #define out_path "/afs/cern.ch/user/l/lforthom/www/private/twophoton/"
-//#define default_ntp_file "run2016BC_17sep.root"
-#define default_ntp_file "run2016BC_28sep.root"
+#define default_ntp_file "run2016BCG_21oct.root"
+
+//#define out_path "/afs/cern.ch/user/l/lforthom/www/private/twophoton/runBC"
+//#define default_ntp_file "run2016BC_28sep.root"
 
 void plot_3hists( const char* name, const char* top_label, TH1* h, TH1* h_1tag, TH1* h_2tag )
 {
@@ -12,11 +14,11 @@ void plot_3hists( const char* name, const char* top_label, TH1* h, TH1* h_1tag, 
   h->Draw();
   h->SetLineColor( kBlack );
   //h->SetMarkerStyle( 20 );
-  h_1tag->Draw("same");
+  h_1tag->Draw("e1 same");
   h_1tag->SetLineColor( kBlack );
   h_1tag->SetMarkerStyle( 20 );
   h_1tag->SetMarkerColor( kRed+1 );
-  h_2tag->Draw("same");
+  h_2tag->Draw("e1 same");
   h_2tag->SetLineColor( kBlack );
   h_2tag->SetMarkerStyle( 24 );
   h_2tag->SetMarkerColor( kGreen+2 );
@@ -27,27 +29,26 @@ void plot_3hists( const char* name, const char* top_label, TH1* h, TH1* h_1tag, 
   c.AddLegendEntry( h_2tag, "#geq 2 proton tags", "ep" );
   c.Prettify( h );
   c.RatioPlot( h, h_1tag, h_2tag, 0., 0.55 );
-  //c.Save( "png", out_path );
+  c.Save( "png", out_path );
   c.Save( "pdf", out_path );
-  c.Save( "pdf", out_path );
-  //c.Save( "png", out_path );
 }
 
-void plot_balances( const char* name, const char* top_label, TH2* h2, TH2* h2_mtag=0, TH2* h2_ytag=0, const float& mass_resol=-1., bool abs_unc=false )
+void plot_balances( const char* name, const char* top_label, const char* title, TGraphErrors* h2, TGraphErrors* h2_mtag=0, TGraphErrors* h2_ytag=0,
+                    const float& min_xy=-1., const float& max_xy=-1., const float& mass_resol=-1., bool abs_unc=false )
 {
   Canvas c( name, top_label );
-  h2->Draw( "p" );
-  c.DrawDiagonal( h2, 0., mass_resol, abs_unc );
-  //h2->Draw( "p same" );
+  TMultiGraph mg;
   h2->SetMarkerStyle( 24 );
-  c.SetLegendY1( 0.18 );
+  //c.SetLegendY1( 0.18 );
   c.AddLegendEntry( h2, "All candidates", "p" );
+  mg.Add( h2, "ep" );
   if ( h2_mtag ) {
     h2_mtag->Draw( "p same" );
     h2_mtag->SetMarkerStyle( 20 );
     h2_mtag->SetMarkerSize( .95 );
     h2_mtag->SetMarkerColor( kRed+1 );
     c.AddLegendEntry( h2_mtag, "Mass matching", "p" );
+    mg.Add( h2_mtag );
   }
   if ( h2_ytag ) {
     h2_ytag->Draw( "p same" );
@@ -55,8 +56,24 @@ void plot_balances( const char* name, const char* top_label, TH2* h2, TH2* h2_mt
     h2_ytag->SetMarkerSize( .7 );
     h2_ytag->SetMarkerColor( kGreen+2 );
     c.AddLegendEntry( h2_ytag, "Rapidity matching", "p" );
+    mg.Add( h2_ytag );
   }
-  c.Prettify( h2 );
+  mg.Draw( "ap" );
+  if ( min_xy!=-1. and max_xy!=-1. ) {
+    mg.GetXaxis()->SetLimits( min_xy, max_xy );
+    mg.GetYaxis()->SetRangeUser( min_xy, max_xy );
+  }
+  if ( mass_resol>0. ) {
+    for ( unsigned int i=0; i<h2->GetN(); i++ ) {
+      double x, y; h2->GetPoint( i, x, y );
+      if ( !abs_unc ) h2->SetPointError( i, 0., y*mass_resol );
+      else            h2->SetPointError( i, 0., mass_resol );
+    }
+  }
+
+  c.DrawDiagonal( min_xy, max_xy, 0., mass_resol, abs_unc );
+  mg.GetHistogram()->SetTitle( title );
+  c.Prettify( mg.GetHistogram() );
   c.Save( "pdf", out_path );
   c.Save( "png", out_path );
 }
@@ -67,6 +84,8 @@ void tree_reader_fallback( TString file=default_ntp_file )
   if ( !f.IsOpen() ) return;
 
   const float sqrt_s = 13.e3;
+  const bool compute_with_met = false;
+  const double rel_err_xi = 0.05; // 15% error on xi determination
 
   TTree* tr = dynamic_cast<TTree*>( f.Get( "ntp" ) );
   // general quantities
@@ -147,6 +166,9 @@ void tree_reader_fallback( TString file=default_ntp_file )
   TH1D* h_diphoton_mass = new TH1D( "diphoton_mass", "Diphoton mass\\Events\\GeV?.1f", 50, 500., 2000. ),
        *h_diphoton_mass_1tag = (TH1D*)h_diphoton_mass->Clone( "diphoton_mass_1tag" ),
        *h_diphoton_mass_2tag = (TH1D*)h_diphoton_mass->Clone( "diphoton_mass_2tag" );
+  TH1D* h_diphoton_mass_withmet = new TH1D( "diphotonmet_mass", "Diphoton + missing E_{T} mass\\Events\\GeV?.0f", 50, 500., 2000. ),
+       *h_diphoton_mass_withmet_1tag = (TH1D*)h_diphoton_mass_withmet->Clone( "diphotonmet_mass_1tag" ),
+       *h_diphoton_mass_withmet_2tag = (TH1D*)h_diphoton_mass_withmet->Clone( "diphotonmet_mass_2tag" );
   TH1D* h_diphoton_rap = new TH1D( "diphoton_rap", "Diphoton rapidity\\Events\\?.1f", 40, -2.5, 2.5 ),
        *h_diphoton_rap_1tag = (TH1D*)h_diphoton_rap->Clone( "diphoton_rap_1tag" ),
        *h_diphoton_rap_2tag = (TH1D*)h_diphoton_rap->Clone( "diphoton_rap_2tag" );
@@ -167,30 +189,29 @@ void tree_reader_fallback( TString file=default_ntp_file )
        *h_met_vs_pt_2tag = (TH2D*)h_met_vs_pt->Clone( "met_vs_pt_2tag" ),
        *h_metx_vs_mety = new TH2D( "metx_vs_mety", "#slash{E}_{T,x} (GeV)\\#slash{E}_{T,y} (GeV)", 50, -125., 125., 50, -125., 125. ),
        *h_metx_vs_mety_2tag = (TH2D*)h_metx_vs_mety->Clone( "metx_vs_mety_2tag" );
-  TH2D* h_ygg_vs_ypp = new TH2D( "ygg_vs_ypp", "Diphoton rapidity\\Diproton rapidity", 600, -3., 3., 600, -3., 3. ),
-       *h_ygg_vs_ypp_candm = (TH2D*)h_ygg_vs_ypp->Clone("ygg_vs_ypp_candm"),
-       *h_ygg_vs_ypp_candy = (TH2D*)h_ygg_vs_ypp->Clone("ygg_vs_ypp_candy");
-  TH2D* h_yggmet_vs_ypp = new TH2D( "yggmet_vs_ypp", "Diphoton + #slash{E}_{T} rapidity\\Diproton rapidity", 600, -3., 3., 600, -3., 3. ),
-       *h_yggmet_vs_ypp_candm = (TH2D*)h_yggmet_vs_ypp->Clone("yggmet_vs_ypp_candm"),
-       *h_yggmet_vs_ypp_candy = (TH2D*)h_yggmet_vs_ypp->Clone("yggmet_vs_ypp_candy");
-  TH2D* h_mgg_vs_mpp = new TH2D( "mgg_vs_mpp", "Diphoton mass (GeV)\\Diproton missing mass (GeV)", 1750, 250., 2000., 1750, 250., 2000. ),
-       *h_mgg_vs_mpp_candm = (TH2D*)h_mgg_vs_mpp->Clone("mgg_vs_mpp_candm"),
-       *h_mgg_vs_mpp_candy = (TH2D*)h_mgg_vs_mpp->Clone("mgg_vs_mpp_candy");
-  TH2D* h_mggmet_vs_mpp = new TH2D( "mggmet_vs_mpp", "Diphoton + #slash{E}_{T} mass (GeV)\\Diproton missing mass (GeV)", 1750, 250., 2000., 1750, 250., 2000. ),
-       *h_mggmet_vs_mpp_candm = (TH2D*)h_mggmet_vs_mpp->Clone("mggmet_vs_mpp_candm"),
-       *h_mggmet_vs_mpp_candy = (TH2D*)h_mggmet_vs_mpp->Clone("mggmet_vs_mpp_candy");
-  TH2D* h_xi1gg_vs_xi1pp = new TH2D( "xi1gg_vs_xi1pp", "#xi_{1} from diphoton system\\Proton #xi_{1}", 1000, 0., 0.5, 1000, 0., 0.5 ),
-       *h_xi1gg_vs_xi1pp_candm = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1gg_vs_xi1pp_candm" ),
-       *h_xi1gg_vs_xi1pp_candy = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1gg_vs_xi1pp_candy" ),
-       *h_xi1ggmet_vs_xi1pp = (TH2D*)h_xi1gg_vs_xi1pp->Clone( "xi1ggmet_vs_xi1pp" ),
-       *h_xi2gg_vs_xi2pp = new TH2D( "xi2gg_vs_xi2pp", "#xi_{2} from diphoton system\\Proton #xi_{2}", 1000, 0., 0.5, 1000, 0., 0.5 ),
-       *h_xi2gg_vs_xi2pp_candm = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2gg_vs_xi2pp_candm" ),
-       *h_xi2gg_vs_xi2pp_candy = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2gg_vs_xi2pp_candy" ),
-       *h_xi2ggmet_vs_xi2pp = (TH2D*)h_xi2gg_vs_xi2pp->Clone( "xi2ggmet_vs_xi2pp" );
+  TH2D* h_mggmet_vs_mgg = new TH2D( "mggmet_vs_mgg", "Diphoton + #slash{E}_{T} mass (GeV)\\Diphoton mass (GeV)", 100, 500., 2000., 100, 500., 2000. );
+  TGraphErrors* h_mgg_vs_mpp = new TGraphErrors,
+               *h_mgg_vs_mpp_candm = new TGraphErrors,
+               *h_mgg_vs_mpp_candy = new TGraphErrors,
+               *h_mggmet_vs_mpp = new TGraphErrors,
+               *h_mggmet_vs_mpp_candm = new TGraphErrors,
+               *h_mggmet_vs_mpp_candy = new TGraphErrors;
+  TGraphErrors* h_ygg_vs_ypp = new TGraphErrors,
+               *h_ygg_vs_ypp_candm = new TGraphErrors,
+               *h_ygg_vs_ypp_candy = new TGraphErrors,
+               *h_yggmet_vs_ypp = new TGraphErrors,
+               *h_yggmet_vs_ypp_candm = new TGraphErrors,
+               *h_yggmet_vs_ypp_candy = new TGraphErrors;
+  TGraphErrors* h_xi1gg_vs_xi1pp = new TGraphErrors,
+               *h_xi1gg_vs_xi1pp_candm = new TGraphErrors,
+               *h_xi1gg_vs_xi1pp_candy = new TGraphErrors,
+               *h_xi1ggmet_vs_xi1pp = new TGraphErrors,
+               *h_xi2gg_vs_xi2pp = new TGraphErrors,
+               *h_xi2gg_vs_xi2pp_candm = new TGraphErrors,
+               *h_xi2gg_vs_xi2pp_candy = new TGraphErrors,
+               *h_xi2ggmet_vs_xi2pp = new TGraphErrors;
 
   ofstream events_list( "events_list_2016BC.txt" );
-
-  const double rel_err_xi = 0.15; // 15% error on xi determination
 
   unsigned int num_evts_notag = 0, num_evts_with_tag = 0;
   TLorentzVector pho1, pho2;
@@ -232,18 +253,6 @@ void tree_reader_fallback( TString file=default_ntp_file )
       const float xi_reco1_withmet = xi_reco1 + met/sqrt_s,
                   xi_reco2_withmet = xi_reco2 + met/sqrt_s;
 
-      //cout << xi_reco1 << ", " << xi_reco2 << endl;
-      h_diphoton_pt->Fill( diphoton_pt[j] );
-      h_diphoton_mass->Fill( diphoton_mass[j] );
-      h_diphoton_rap->Fill( diphoton_rapidity[j] );
-      h_diphoton_closestvtx->Fill( diphoton_vertex_nearestvtxdist[j] );
-      h_diphoton_ntrk->Fill( diphoton_vertex_tracks[j] );
-      h_diphoton_dphi->Fill( 1-fabs( diphoton_dphi[j]/TMath::Pi() ) );
-      h_diphoton_leadpt->Fill( diphoton_pt1[j] );
-      h_diphoton_subleadpt->Fill( diphoton_pt2[j] );
-      h_diphoton_leadeta->Fill( diphoton_eta1[j] );
-      h_diphoton_subleadeta->Fill( diphoton_eta2[j] );
-
       const float met_x = met*cos( met_phi ),
                   met_y = met*sin( met_phi );
       pho1.SetPtEtaPhiM( diphoton_pt1[j], diphoton_eta1[j], diphoton_phi1[j], 0. );
@@ -254,12 +263,27 @@ void tree_reader_fallback( TString file=default_ntp_file )
       const float diphoton_plus_met_mass = dipho_met.M(),
                   diphoton_plus_met_rap = dipho_met.Rapidity();
 
+      //cout << xi_reco1 << ", " << xi_reco2 << endl;
+      h_diphoton_pt->Fill( diphoton_pt[j] );
+      h_diphoton_mass->Fill( diphoton_mass[j] );
+      h_diphoton_mass_withmet->Fill( diphoton_plus_met_mass );
+      h_diphoton_rap->Fill( diphoton_rapidity[j] );
+      h_diphoton_closestvtx->Fill( diphoton_vertex_nearestvtxdist[j] );
+      h_diphoton_ntrk->Fill( diphoton_vertex_tracks[j] );
+      h_diphoton_dphi->Fill( 1-fabs( diphoton_dphi[j]/TMath::Pi() ) );
+      h_diphoton_leadpt->Fill( diphoton_pt1[j] );
+      h_diphoton_subleadpt->Fill( diphoton_pt2[j] );
+      h_diphoton_leadeta->Fill( diphoton_eta1[j] );
+      h_diphoton_subleadeta->Fill( diphoton_eta2[j] );
+
       h_met_vs_pt->Fill( met, diphoton_pt[j] );
       h_metx_vs_mety->Fill( met_x, met_y );
+      h_mggmet_vs_mgg->Fill( diphoton_plus_met_mass, diphoton_mass[j] );
 
       if ( num_1tag>0 ) {
         h_diphoton_pt_1tag->Fill( diphoton_pt[j] );
         h_diphoton_mass_1tag->Fill( diphoton_mass[j] );
+        h_diphoton_mass_withmet_1tag->Fill( diphoton_plus_met_mass );
         h_diphoton_rap_1tag->Fill( diphoton_rapidity[j] );
         h_diphoton_closestvtx_1tag->Fill( diphoton_vertex_nearestvtxdist[j] );
         h_diphoton_ntrk_1tag->Fill( diphoton_vertex_tracks[j] );
@@ -272,6 +296,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
       if ( num_2tag>0 ) {
         h_diphoton_pt_2tag->Fill( diphoton_pt[j] );
         h_diphoton_mass_2tag->Fill( diphoton_mass[j] );
+        h_diphoton_mass_withmet_2tag->Fill( diphoton_plus_met_mass );
         h_diphoton_rap_2tag->Fill( diphoton_rapidity[j] );
         h_diphoton_closestvtx_2tag->Fill( diphoton_vertex_nearestvtxdist[j] );
         h_diphoton_ntrk_2tag->Fill( diphoton_vertex_tracks[j] );
@@ -281,11 +306,11 @@ void tree_reader_fallback( TString file=default_ntp_file )
         h_diphoton_leadeta_2tag->Fill( diphoton_eta1[j] );
         h_diphoton_subleadeta_2tag->Fill( diphoton_eta2[j] );
 
-        h_xi1gg_vs_xi1pp->Fill( xi_reco1, xi_prot1 );
-        h_xi2gg_vs_xi2pp->Fill( xi_reco2, xi_prot2 );
+        h_xi1gg_vs_xi1pp->SetPoint( h_xi1gg_vs_xi1pp->GetN(), xi_reco1, xi_prot1 );
+        h_xi2gg_vs_xi2pp->SetPoint( h_xi2gg_vs_xi2pp->GetN(), xi_reco2, xi_prot2 );
 
-        h_xi1ggmet_vs_xi1pp->Fill( xi_reco1_withmet, xi_prot1 );
-        h_xi2ggmet_vs_xi2pp->Fill( xi_reco2_withmet, xi_prot2 );
+        h_xi1ggmet_vs_xi1pp->SetPoint( h_xi1ggmet_vs_xi1pp->GetN(), xi_reco1_withmet, xi_prot1 );
+        h_xi2ggmet_vs_xi2pp->SetPoint( h_xi2ggmet_vs_xi2pp->GetN(), xi_reco2_withmet, xi_prot2 );
 
         h_met_vs_pt_2tag->Fill( met, diphoton_pt[j] );
         h_metx_vs_mety_2tag->Fill( met_x, met_y );
@@ -294,23 +319,24 @@ void tree_reader_fallback( TString file=default_ntp_file )
       }
 
       if ( num_diproton>0 ) {
-        h_mgg_vs_mpp->Fill( diphoton_mass[j], max_diproton_mass );
-        h_mggmet_vs_mpp->Fill( diphoton_plus_met_mass, max_diproton_mass );
-        h_ygg_vs_ypp->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
-	h_yggmet_vs_ypp->Fill( diphoton_plus_met_rap, max_diproton_mass_rap );
+        h_mgg_vs_mpp->SetPoint( h_mgg_vs_mpp->GetN(), diphoton_mass[j], max_diproton_mass );
+        h_mggmet_vs_mpp->SetPoint( h_mggmet_vs_mpp->GetN(), diphoton_plus_met_mass, max_diproton_mass );
+        h_ygg_vs_ypp->SetPoint( h_ygg_vs_ypp->GetN(), diphoton_rapidity[j], max_diproton_mass_rap );
+	h_yggmet_vs_ypp->SetPoint( h_yggmet_vs_ypp->GetN(), diphoton_plus_met_rap, max_diproton_mass_rap );
         h_mpp_over_mgg->Fill( max_diproton_mass/diphoton_mass[j] );
         h_ypp_minus_ygg->Fill( max_diproton_mass_rap - diphoton_rapidity[j] );
-        //if ( fabs( diphoton_mass[j]-max_diproton_mass )<max_diproton_mass*rel_err_xi ) {
-        if ( fabs( diphoton_plus_met_mass-max_diproton_mass )<max_diproton_mass*rel_err_xi ) {
-          h_mgg_vs_mpp_candm->Fill( diphoton_mass[j], max_diproton_mass );
-          h_mggmet_vs_mpp_candm->Fill( diphoton_plus_met_mass, max_diproton_mass );
-          h_ygg_vs_ypp_candm->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
-	  h_yggmet_vs_ypp_candm->Fill( diphoton_plus_met_rap, max_diproton_mass_rap );
-          h_xi1gg_vs_xi1pp_candm->Fill( xi_reco1, xi_prot1 );
-          h_xi2gg_vs_xi2pp_candm->Fill( xi_reco2, xi_prot2 );
+        if ( ( !compute_with_met and fabs( diphoton_mass[j]-max_diproton_mass )<max_diproton_mass*rel_err_xi )
+          or ( compute_with_met and fabs( diphoton_plus_met_mass-max_diproton_mass )<max_diproton_mass*rel_err_xi ) ) {
 
-          //if ( fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
-          if ( fabs( diphoton_plus_met_rap-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
+          h_mgg_vs_mpp_candm->SetPoint( h_mgg_vs_mpp_candm->GetN(), diphoton_mass[j], max_diproton_mass );
+          h_mggmet_vs_mpp_candm->SetPoint( h_mggmet_vs_mpp_candm->GetN(), diphoton_plus_met_mass, max_diproton_mass );
+          h_ygg_vs_ypp_candm->SetPoint( h_ygg_vs_ypp_candm->GetN(), diphoton_rapidity[j], max_diproton_mass_rap );
+	  h_yggmet_vs_ypp_candm->SetPoint( h_yggmet_vs_ypp_candm->GetN(), diphoton_plus_met_rap, max_diproton_mass_rap );
+          h_xi1gg_vs_xi1pp_candm->SetPoint( h_xi1gg_vs_xi1pp_candm->GetN(), xi_reco1, xi_prot1 );
+          h_xi2gg_vs_xi2pp_candm->SetPoint( h_xi2gg_vs_xi2pp_candm->GetN(), xi_reco2, xi_prot2 );
+
+          if ( ( !compute_with_met and fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) )
+            or ( compute_with_met and fabs( diphoton_plus_met_rap-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) ) {
             /*TLorentzVector p1, p2;
             p1.SetPtEtaPhiM( diphoton_pt1[j], diphoton_eta1[j], diphoton_phi1[j], 0. );
             p2.SetPtEtaPhiM( diphoton_pt2[j], diphoton_eta2[j], diphoton_phi2[j], 0. );
@@ -324,14 +350,14 @@ void tree_reader_fallback( TString file=default_ntp_file )
                  << "                     pt=" << diphoton_pt2[j] << ", eta=" << diphoton_eta2[j] << ", phi=" << diphoton_phi2[j] << endl;
           }
         }
-        //if ( fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
-        if ( fabs( diphoton_plus_met_rap-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) {
-          h_mgg_vs_mpp_candy->Fill( diphoton_mass[j], max_diproton_mass );
-          h_mggmet_vs_mpp_candy->Fill( diphoton_plus_met_mass, max_diproton_mass );
-          h_ygg_vs_ypp_candy->Fill( diphoton_rapidity[j], max_diproton_mass_rap );
-	  h_yggmet_vs_ypp_candy->Fill( diphoton_plus_met_rap, max_diproton_mass_rap );
-          h_xi1gg_vs_xi1pp_candy->Fill( xi_reco1, xi_prot1 );
-          h_xi2gg_vs_xi2pp_candy->Fill( xi_reco2, xi_prot2 );
+        if ( ( !compute_with_met and fabs( diphoton_rapidity[j]-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) )
+          or ( compute_with_met and fabs( diphoton_plus_met_rap-max_diproton_mass_rap )<rel_err_xi/sqrt( 2. ) ) ) {
+          h_mgg_vs_mpp_candy->SetPoint( h_mgg_vs_mpp_candy->GetN(), diphoton_mass[j], max_diproton_mass );
+          h_mggmet_vs_mpp_candy->SetPoint( h_mggmet_vs_mpp_candy->GetN(), diphoton_plus_met_mass, max_diproton_mass );
+          h_ygg_vs_ypp_candy->SetPoint( h_ygg_vs_ypp_candy->GetN(), diphoton_rapidity[j], max_diproton_mass_rap );
+	  h_yggmet_vs_ypp_candy->SetPoint( h_yggmet_vs_ypp_candy->GetN(), diphoton_plus_met_rap, max_diproton_mass_rap );
+          h_xi1gg_vs_xi1pp_candy->SetPoint( h_xi1gg_vs_xi1pp_candy->GetN(), xi_reco1, xi_prot1 );
+          h_xi2gg_vs_xi2pp_candy->SetPoint( h_xi2gg_vs_xi2pp_candy->GetN(), xi_reco2, xi_prot2 );
         }
         num_evts_with_tag++;
       }
@@ -363,7 +389,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
               lumi_c = 1.490748474431, // fb-1
               lumi_g = 3.742171002882; // fb-1
 
-  const float lumi = lumi_b+lumi_c;
+  const float lumi = ( file.Contains( "2016BCG" ) ) ? lumi_b+lumi_c+lumi_g : lumi_b+lumi_c;
   /*float lumi = 0.; string run_name;
   switch ( run ) {
     case 'B': lumi = lumi_b; run_name = "B"; break;
@@ -378,6 +404,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
 
   {
     plot_3hists( "diphoton_mass", top_label, h_diphoton_mass, h_diphoton_mass_1tag, h_diphoton_mass_2tag );
+    plot_3hists( "diphoton_mass_withmet", top_label, h_diphoton_mass_withmet, h_diphoton_mass_withmet_1tag, h_diphoton_mass_withmet_2tag );
     plot_3hists( "diphoton_pt", top_label, h_diphoton_pt, h_diphoton_pt_1tag, h_diphoton_pt_2tag );
     plot_3hists( "diphoton_lead_pt", top_label, h_diphoton_leadpt, h_diphoton_leadpt_1tag, h_diphoton_leadpt_2tag );
     plot_3hists( "diphoton_sublead_pt", top_label, h_diphoton_subleadpt, h_diphoton_subleadpt_1tag, h_diphoton_subleadpt_2tag );
@@ -400,14 +427,14 @@ void tree_reader_fallback( TString file=default_ntp_file )
          << " -> with mass matching: " << h_mgg_vs_mpp_candm->Integral() << endl
          << " -> with rapiditiy matching: " << h_mgg_vs_mpp_candy->Integral() << endl;
 
-    plot_balances( "mass_balance", top_label, h_mgg_vs_mpp, h_mgg_vs_mpp_candm, h_mgg_vs_mpp_candy, rel_err_xi );
-    plot_balances( "mass_balance_withmet", top_label, h_mggmet_vs_mpp, h_mggmet_vs_mpp_candm, h_mggmet_vs_mpp_candy, rel_err_xi );
-    plot_balances( "rapidity_balance", top_label, h_ygg_vs_ypp, h_ygg_vs_ypp_candm, h_ygg_vs_ypp_candy, rel_err_xi/sqrt( 2. ), true );
-    plot_balances( "rapidity_balance_withmet", top_label, h_yggmet_vs_ypp, h_yggmet_vs_ypp_candm, h_yggmet_vs_ypp_candy, rel_err_xi/sqrt( 2. ), true );
-    plot_balances( "xi1_balance", top_label, h_xi1gg_vs_xi1pp, h_xi1gg_vs_xi1pp_candm, h_xi1gg_vs_xi1pp_candy, rel_err_xi );
-    plot_balances( "xi2_balance", top_label, h_xi2gg_vs_xi2pp, h_xi2gg_vs_xi2pp_candm, h_xi2gg_vs_xi2pp_candy, rel_err_xi );
-    plot_balances( "xi1_balance_withmet", top_label, h_xi1ggmet_vs_xi1pp, 0, 0, rel_err_xi );
-    plot_balances( "xi2_balance_withmet", top_label, h_xi2ggmet_vs_xi2pp, 0, 0, rel_err_xi );
+    plot_balances( "mass_balance", top_label, "Diphoton mass (GeV)\\Diproton missing mass (GeV)", h_mgg_vs_mpp, h_mgg_vs_mpp_candm, h_mgg_vs_mpp_candy, 500., 2000., rel_err_xi );
+    plot_balances( "mass_balance_withmet", top_label, "Diphoton + #slash{E}_{T} mass (GeV)\\Diproton missing mass (GeV)", h_mggmet_vs_mpp, h_mggmet_vs_mpp_candm, h_mggmet_vs_mpp_candy, 500., 2000., rel_err_xi );
+    plot_balances( "rapidity_balance", top_label, "Diphoton rapidity\\Diproton rapidity", h_ygg_vs_ypp, h_ygg_vs_ypp_candm, h_ygg_vs_ypp_candy, -3., 3., rel_err_xi/sqrt( 2. ), true );
+    plot_balances( "rapidity_balance_withmet", top_label, "Diphoton + #slash{E}_{T} rapidity\\Diproton rapidity", h_yggmet_vs_ypp, h_yggmet_vs_ypp_candm, h_yggmet_vs_ypp_candy, -3., 3., rel_err_xi/sqrt( 2. ), true );
+    plot_balances( "xi1_balance", top_label, "#xi_{1} from diphoton system\\Proton #xi_{1}", h_xi1gg_vs_xi1pp, h_xi1gg_vs_xi1pp_candm, h_xi1gg_vs_xi1pp_candy, 0., 0.45, rel_err_xi );
+    plot_balances( "xi2_balance", top_label, "#xi_{2} from diphoton system\\Proton #xi_{2}", h_xi2gg_vs_xi2pp, h_xi2gg_vs_xi2pp_candm, h_xi2gg_vs_xi2pp_candy, 0., 0.45, rel_err_xi );
+    plot_balances( "xi1_balance_withmet", top_label, "#xi_{1} from diphoton + #slash{E}_{T} system\\Proton #xi_{1}", h_xi1ggmet_vs_xi1pp, 0, 0, 0., 0.45, rel_err_xi );
+    plot_balances( "xi2_balance_withmet", top_label, "#xi_{2} from diphoton + #slash{E}_{T} system\\Proton #xi_{2}", h_xi2ggmet_vs_xi2pp, 0, 0, 0., 0.45, rel_err_xi );
 
   }
 
@@ -425,12 +452,22 @@ void tree_reader_fallback( TString file=default_ntp_file )
     c.Save( "png", out_path );
   }
   {
+    Canvas c( "diphoton_mass_vs diphotonmet_mass", top_label );
+    h_mggmet_vs_mgg->Draw( "colz" );
+    c.DrawDiagonal( h_mggmet_vs_mgg->GetXaxis()->GetXmin(), h_mggmet_vs_mgg->GetXaxis()->GetXmax() );
+    h_mggmet_vs_mgg->Draw( "colz same" );
+    c.Prettify( h_mggmet_vs_mgg );
+    c.Save( "pdf", out_path );
+    c.Save( "png", out_path );
+  }
+  {
     Canvas c( "diphoton_pt_vs_met", top_label );
     h_met_vs_pt->Draw( "colz" );
     h_met_vs_pt_2tag->Draw( "p same" );
     h_met_vs_pt_2tag->SetMarkerStyle( 24 );
     h_met_vs_pt_2tag->SetMarkerColor( kRed );
     c.AddLegendEntry( h_met_vs_pt_2tag, "#geq 2 proton tags", "p" );
+    c.DrawDiagonal( h_met_vs_pt->GetXaxis()->GetXmin(), h_met_vs_pt->GetXaxis()->GetXmax() );
     c.Prettify( h_met_vs_pt );
     c.Save( "pdf", out_path );
     c.Save( "png", out_path );
@@ -442,12 +479,16 @@ void tree_reader_fallback( TString file=default_ntp_file )
     h_num_vtx_5mm->Sumw2();
     h_num_vtx_1cm->Sumw2();
     h_num_vtx_1mm->Draw();
+    h_num_vtx_1mm->SetLineColor( kBlack );
     h_num_vtx_2mm->Draw( "same" );
+    h_num_vtx_2mm->SetLineColor( kBlack );
     h_num_vtx_2mm->SetMarkerColor( kRed+1 );
     h_num_vtx_5mm->Draw( "same" );
     h_num_vtx_5mm->SetMarkerColor( kGreen+2 );
+    h_num_vtx_5mm->SetLineColor( kBlack );
     h_num_vtx_1cm->Draw( "same" );
     h_num_vtx_1cm->SetMarkerColor( kBlue+1 );
+    h_num_vtx_1cm->SetLineColor( kBlack );
     h_num_vtx_1mm->SetMarkerStyle( 20 );
     h_num_vtx_2mm->SetMarkerStyle( 21 );
     h_num_vtx_5mm->SetMarkerStyle( 22 );
@@ -466,6 +507,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
     h_num_proton->Sumw2();
     h_num_proton->Draw();
     h_num_proton->SetMarkerStyle( 20 );
+    h_num_proton->SetLineColor( kBlack );
     c.Prettify( h_num_proton );
     c.Save( "pdf", out_path );
     c.Save( "png", out_path );
@@ -475,6 +517,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
     h_mpp_over_mgg->Sumw2();
     h_mpp_over_mgg->Draw();
     h_mpp_over_mgg->SetMarkerStyle( 20 );
+    h_mpp_over_mgg->SetLineColor( kBlack );
     c.Prettify( h_mpp_over_mgg );
     c.Save( "pdf", out_path );
     c.Save( "png", out_path );
@@ -484,6 +527,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
     h_ypp_minus_ygg->Sumw2();
     h_ypp_minus_ygg->Draw();
     h_ypp_minus_ygg->SetMarkerStyle( 20 );
+    h_ypp_minus_ygg->SetLineColor( kBlack );
     c.Prettify( h_ypp_minus_ygg );
     c.Save( "pdf", out_path );
     c.Save( "png", out_path );

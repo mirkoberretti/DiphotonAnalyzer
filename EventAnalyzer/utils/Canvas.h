@@ -30,8 +30,9 @@ class Canvas : public TCanvas
     x->SetTitleFont(43); x->SetTitleSize(26);
     y->SetLabelFont(43); y->SetLabelSize(20);
     y->SetTitleFont(43); y->SetTitleSize(26);
+    x->SetTitleColor(kBlack);
     if (fRatio) {
-      x->SetTitleOffset(4.4);
+      x->SetTitleOffset(3.2);
       x->SetLabelOffset(0.02);
     }
     y->SetTitleOffset(1.4);
@@ -71,25 +72,21 @@ class Canvas : public TCanvas
     }
   }
 
-  inline void DrawDiagonal(const TH1* obj, const float& x_resol=-1., const float& y_resol=-1., bool abs_unc=false) {
+  inline void DrawDiagonal(const float& min, const float& max, const float& x_resol=-1., const float& y_resol=-1., bool abs_unc=false) {
     //FIXME to do: implement x resolution
-    const float min_x = obj->GetXaxis()->GetXmin(),
-                min_y = obj->GetYaxis()->GetXmin(),
-                max_x = obj->GetXaxis()->GetXmax(),
-                max_y = obj->GetYaxis()->GetXmax();
     if (y_resol>0.) {
       TGraph* sigmay_pm = new TGraph(4);
       if (!abs_unc) {
-        sigmay_pm->SetPoint(0, min_x, min_y+y_resol*min_y);
-        sigmay_pm->SetPoint(1, max_x, max_y+y_resol*max_y);
-        sigmay_pm->SetPoint(2, max_x, max_y-y_resol*max_y);
-        sigmay_pm->SetPoint(3, min_x, min_y-y_resol*min_y);
+        sigmay_pm->SetPoint(0, min, min+y_resol*min);
+        sigmay_pm->SetPoint(1, max, max+y_resol*max);
+        sigmay_pm->SetPoint(2, max, max-y_resol*max);
+        sigmay_pm->SetPoint(3, min, min-y_resol*min);
       }
       else {
-        sigmay_pm->SetPoint(0, min_x, min_y+y_resol);
-        sigmay_pm->SetPoint(1, max_x, max_y+y_resol);
-        sigmay_pm->SetPoint(2, max_x, max_y-y_resol);
-        sigmay_pm->SetPoint(3, min_x, min_y-y_resol);
+        sigmay_pm->SetPoint(0, min, min+y_resol);
+        sigmay_pm->SetPoint(1, max, max+y_resol);
+        sigmay_pm->SetPoint(2, max, max-y_resol);
+        sigmay_pm->SetPoint(3, min, min-y_resol);
       }
       sigmay_pm->SetFillColorAlpha(kBlack, 0.1);
       //sigmay_pm->SetFillColor(18);
@@ -99,7 +96,7 @@ class Canvas : public TCanvas
     l.SetLineWidth( 3 );
     l.SetLineColor( kGray );
     l.SetLineStyle( 2 );
-    l.DrawLine( min_x, min_y, max_x, max_y );
+    l.DrawLine( min, min, max, max );
   }
 
   inline void RatioPlot(TH1* obj1, const TH1* obj2, const TH1* obj3, float ymin=-999., float ymax=-999.) {
@@ -180,11 +177,11 @@ class Canvas : public TCanvas
     TCanvas::Divide(1,2);
     TPad* p1 = (TPad*)TCanvas::GetPad(1), *p2 = (TPad*)TCanvas::GetPad(2);
     p1->SetPad(0., 0.3, 1., 1.);
-    p2->SetPad(0., 0.08, 1., 0.3);
+    p2->SetPad(0., 0.0, 1., 0.3);
     p1->SetLeftMargin(TCanvas::GetLeftMargin()); p1->SetRightMargin(TCanvas::GetRightMargin());
     p2->SetLeftMargin(TCanvas::GetLeftMargin()); p2->SetRightMargin(TCanvas::GetRightMargin());
     p1->SetTopMargin(TCanvas::GetTopMargin()+0.025); p1->SetBottomMargin(0.02);
-    p2->SetTopMargin(0.02); p2->SetBottomMargin(TCanvas::GetBottomMargin()+0.025);
+    p2->SetTopMargin(0.02); p2->SetBottomMargin(TCanvas::GetBottomMargin()+0.225);
     p1->SetTicks(1,1); p2->SetTicks(1,1);
     p2->SetGrid(0,1);
     TCanvas::cd(1);
