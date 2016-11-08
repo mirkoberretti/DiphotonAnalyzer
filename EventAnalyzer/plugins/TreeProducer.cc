@@ -311,6 +311,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  
  unsigned int fElectronNum;
+ unsigned int fElectronP4;
  
  edm::Handle< edm::View<flashgg::Electron> > electrons;
  iEvent.getByToken(electronToken_, electrons);
@@ -332,6 +333,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  
  unsigned int fMuonNum;
+ unsigned int fElectronP4;
  
  edm::Handle< edm::View<flashgg::Muon> > muons;
  iEvent.getByToken(muonToken_,muons);
@@ -348,6 +350,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  
  unsigned int fJetNum;
+ unsigned int fJetP4;
  
  edm::Handle< edm::View<flashgg::Jet> > jets;
  iEvent.getByToken(jetToken_,jets);
