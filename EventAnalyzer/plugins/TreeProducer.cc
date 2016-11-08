@@ -310,7 +310,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //Implmenting electron 4 vector
  
  
- unisgned int fElectronNum;
+ unsigned int fElectronNum;
  
  edm::Handle< edm::View<flashgg::Electron> > electrons;
  iEvent.getByToken(electronToken_, electrons);
@@ -321,6 +321,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //   electron_vtx[fElectronNum] = electron->vtx();
  
  fElectronNum=0;
+ fElectronP4=0;
  for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
  fElectronP4[fElectronNum] = electron->p4();
  
@@ -336,6 +337,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  iEvent.getByToken(muonToken_,muons);
  
  fMuonNum=0;
+ fMuonP4=0;
  for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
  fMuonP4[fMuonNum] = muon->p4();
  
@@ -351,6 +353,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  iEvent.getByToken(jetToken_,jets);
  
  fJetNum=0;
+ fJetP4=0;
  for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
  fJetP4[fJetNum] = jet->p4();
  
