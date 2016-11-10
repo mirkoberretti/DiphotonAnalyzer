@@ -101,6 +101,11 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     unsigned int fProtonNum;
     float fProtonXi[MAX_PROTON];
     unsigned int fProtonSide[MAX_PROTON];
+ //                   JW
+    unsigned int fElectronNum;
+    unsigned int fMuonNum;
+    unsigned int fJetNum;
+ //
 
     unsigned int fDiprotonNum;
     float fDiprotonM[MAX_DIPROTON], fDiprotonY[MAX_DIPROTON];
@@ -310,11 +315,12 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //Implmenting electron 4 vector
  
  
- unsigned int fElectronNum;
- float fElectronP4[0];
+ // fetch the electron collection from EDM file
+  edm::Handle< edm::View<flashgg::Electron> > electrons;
+  iEvent.getByToken(electronToken_, electrons);
  
- edm::Handle< edm::View<flashgg::Electron> > electrons;
- iEvent.getByToken(electronToken_, electrons);
+ fElectronNum=0;
+ float fElectronP4[0];
  
  // fElectronVertexX[fElectronNum] = electron->vtx()->x();
  // fElectronVertexY[fElectronNum] = electron->vtx()->y();
@@ -324,7 +330,10 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  fElectronNum=0;
  fElectronP4=0;
  for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
- fElectronP4[fElectronNum] = electron->p4();
+  edm::Ptr<flashgg::Electron> electron = electrons->ptrAt( i );
+  
+ fElectronP4[i] = electron->p4();
+//fElectronP4[fElectronNum] = electron->p4();
  
  fElectronNum++;
  }
