@@ -311,7 +311,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  
  unsigned int fElectronNum;
- float fElectronP4;
+ float fElectronP4[];
  
  edm::Handle< edm::View<flashgg::Electron> > electrons;
  iEvent.getByToken(electronToken_, electrons);
