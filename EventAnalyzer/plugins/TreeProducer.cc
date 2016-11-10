@@ -349,6 +349,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  fMuonNum=0;
  //fMuonP4=0;
  for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
+  edm::Ptr<flashgg::Muon> muon = muons->ptrAt( i );
  fMuonP4[fMuonNum] = muon->p4();
  
  fMuonNum++;
@@ -366,6 +367,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  fJetNum=0;
  //fJetP4=0;
  for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
+  edm::Ptr<flashgg::Jet> jet = jets->ptrAt( i );
  fJetP4[fJetNum] = jet->p4();
  
  fJetNum++;
