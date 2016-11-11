@@ -105,6 +105,9 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     unsigned int fElectronNum;
     unsigned int fMuonNum;
     unsigned int fJetNum;
+    float fElectronPt[MAX_ELECTRON], fElectronEta[MAX_ELECTRON], fElectronPhi[MAX_ELECTRON], fElectronE[MAX_ELECTRON];
+    float fMuonPt[MAX_MUON], fMuonEta[MAX_MUON], fMuonPhi[MAX_MUON], fMuonE[MAX_MUON];
+    float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET];
  //
 
     unsigned int fDiprotonNum;
@@ -213,6 +216,30 @@ TreeProducer::clearTree()
     fDiphotonNearestDist[i] = 999.;
   }
 
+  fElectronNum = 0;
+  for ( unsigned int i=0; i<MAX_ELECTRON; i++ ) {
+    fElectronPt[i] = 0.;
+    fElectronEta[i] = 0.;
+    fElectronPhi[i] = 0.;
+    fElectronE[i] = 0.;
+  }
+
+  fMuonNum = 0;
+  for ( unsigned int i=0; i<MAX_MUON; i++ ) {
+    fMuonPt[i] = 0.;
+    fMuonEta[i] = 0.;
+    fMuonPhi[i] = 0.;
+    fMuonE[i] = 0.;
+  }
+
+  fJetNum = 0;
+  for ( unsigned int i=0; i<MAX_JET; i++ ) {
+    fJetPt[i] = 0.;
+    fJetPt[i] = 0.;
+    fJetEta[i] = 0.;
+    fJetE[i] = 0.;
+  }
+
   fMET = fMETPhi = 0.;
 
   fVertexNum = 0;
@@ -312,46 +339,50 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  //                               JW
  
- //Implmenting electron 4 vector
+ //Implementing electron 4 vector
  
  
  // fetch the electron collection from EDM file
   edm::Handle< edm::View<flashgg::Electron> > electrons;
   iEvent.getByToken(electronToken_, electrons);
  
- 
- 
- // fElectronVertexX[fElectronNum] = electron->vtx()->x();
- // fElectronVertexY[fElectronNum] = electron->vtx()->y();
- // fElectronVertexZ[fElectronNum] = electron->vtx()->z();
- //   electron_vtx[fElectronNum] = electron->vtx();
- 
  fElectronNum=0;
- float fElectronP4[fElectronNum];
- for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
+ //  edm::Ptr<reco::Vertex> electron_vtx[MAX_ELECTRON];
+
+  for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
   edm::Ptr<flashgg::Electron> electron = electrons->ptrAt( i );
-  
- fElectronP4[i] = electron->p4();
-//fElectronP4[fElectronNum] = electron->p4();
- 
+  fElectronPt[fElectronNum] = electron->pt();
+  fElectronEta[fElectronNum] = electron->eta();
+  fElectronPhi[fElectronNum] = electron->phi();
+  fElectronE[fElectronNum] = electron->energy();
+
+  //  fElectronVertexX[fElectronNum] = electron->vtx()->x();
+  //  fElectronVertexY[fElectronNum] = electron->vtx()->y();
+  //  fElectronVertexZ[fElectronNum] = electron->vtx()->z();
+  //  electron_vtx[fElectronNum] = electron->vtx();
+
  fElectronNum++;
  }
+
  
  //Implementing muon 4 vector
  
  
- unsigned int fMuonNum;
- 
- 
  edm::Handle< edm::View<flashgg::Muon> > muons;
  iEvent.getByToken(muonToken_,muons);
+
+ // Add muon vertex here
  
  fMuonNum=0;
- float fMuonP4[fMuonNum];
- //fMuonP4=0;
+ //edm::Ptr<reco::Vertex> muon_vtx[MAX_MUON];
+
+
  for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
   edm::Ptr<flashgg::Muon> muon = muons->ptrAt( i );
- fMuonP4[i] = muon->p4();
+  fMuonPt[fMuonNum] = muon->pt();
+  fMuonEta[fMuonNum] = muon->eta();
+  fMuonPhi[fMuonNum] = muon->phi();
+  fMuonE[fMuonNum] = muon->energy();
  
  fMuonNum++;
  }
@@ -359,18 +390,20 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //Implementing jet 4 vector
  
  
- unsigned int fJetNum;
- 
- 
  edm::Handle< edm::View<flashgg::Jet> > jets;
  iEvent.getByToken(jetToken_,jets);
  
+ // Add jet vertex here
+
  fJetNum=0;
- float fJetP4[fJetNum];
- //fJetP4=0;
+ //edm::Ptr<reco::Vertex> jet_vtx{MAX_JET];
+
  for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
   edm::Ptr<flashgg::Jet> jet = jets->ptrAt( i );
- fJetP4[i] = jet->p4();
+  fJetPt[fJetNum] = jet->pt();
+  fJetEta[fJetNum] = jet->eta();
+  fJetPhi[fJetNum] = jet->phi();
+  fJetE[fJetNum] = jet->energy();
  
  fJetNum++;
  }
@@ -451,6 +484,8 @@ TreeProducer::beginJob()
   tree_->Branch( "diphoton_vertex_vtx2mmdist", fDiphotonVerticesAt2mmDist, "diphoton_vertex_vtx2mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx5mmdist", fDiphotonVerticesAt5mmDist, "diphoton_vertex_vtx5mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx1cmdist", fDiphotonVerticesAt1cmDist, "diphoton_vertex_vtx1cmdist[num_diphoton]/i" );
+
+  //  tree_->Branch( "electron_pt", fElectronPt, "electron pT" );
 
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 
