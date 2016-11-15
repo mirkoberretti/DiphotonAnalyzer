@@ -485,7 +485,20 @@ TreeProducer::beginJob()
   tree_->Branch( "diphoton_vertex_vtx5mmdist", fDiphotonVerticesAt5mmDist, "diphoton_vertex_vtx5mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx1cmdist", fDiphotonVerticesAt1cmDist, "diphoton_vertex_vtx1cmdist[num_diphoton]/i" );
 
-  //  tree_->Branch( "electron_pt", fElectronPt, "electron pT" );
+  tree_->Branch( "electron_pt", fElectronPt, "electron pT" );
+  tree_->Branch( "electron_eta", fElectronEta, "electron Eta" );
+  tree_->Branch( "electron_phi", fElectronPhi, "electron Phi" );
+  tree_->Branch( "electron_energy", fElectronE, "electron Energy" );
+
+  tree_->Branch( "muon_pt", fMuonPt, "muon pT" );
+  tree_->Branch( "muon_eta", fMuonEta, "muon Eta" );
+  tree_->Branch( "muon_phi", fMuonPhi, "muon Phi" );
+  tree_->Branch( "muon_energy", fMuonE, "muon Energy" );
+
+  tree_->Branch( "jet_pt", fJetPt, "jet pT" );
+  tree_->Branch( "jet_eta", fJetEta, "jet Eta" );
+  tree_->Branch( "jet_phi", fJetPhi, "jet Phi" );
+  tree_->Branch( "jet_energy", fJetE, "jet Energy" );
 
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 
