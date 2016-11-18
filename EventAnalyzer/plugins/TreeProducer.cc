@@ -55,7 +55,7 @@
 //                               JW
 #define MAX_ELECTRON 10
 #define MAX_MUON 10
-#define MAX_JET 100
+#define MAX_JET 10
 //
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
