@@ -107,7 +107,7 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     unsigned int fJetNum;
     float fElectronPt[MAX_ELECTRON], fElectronEta[MAX_ELECTRON], fElectronPhi[MAX_ELECTRON], fElectronE[MAX_ELECTRON];
     float fMuonPt[MAX_MUON], fMuonEta[MAX_MUON], fMuonPhi[MAX_MUON], fMuonE[MAX_MUON];
-    float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET];
+  float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET], fJetMass[MAX_JET];
  //
 
     unsigned int fDiprotonNum;
@@ -238,6 +238,7 @@ TreeProducer::clearTree()
     fJetPt[i] = 0.;
     fJetEta[i] = 0.;
     fJetE[i] = 0.;
+    fJetMass[i] = 0.;
   }
 
   fMET = fMETPhi = 0.;
@@ -404,6 +405,7 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   fJetEta[fJetNum] = jet->eta();
   fJetPhi[fJetNum] = jet->phi();
   fJetE[fJetNum] = jet->energy();
+  fJetMass[fJetNum] = jet->mass();
  
  fJetNum++;
  }
@@ -502,6 +504,7 @@ TreeProducer::beginJob()
   tree_->Branch( "jet_eta", fJetEta, "jet_eta[num_jet]/F" );
   tree_->Branch( "jet_phi", fJetPhi, "jet_phi[num_jet]/F" );
   tree_->Branch( "jet_energy", fJetE, "jet_energy[num_jet]/F" );
+  tree_->Branch( "jet_mass", fJetMass, "jet_mass[num_jet]/F" );
 
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 

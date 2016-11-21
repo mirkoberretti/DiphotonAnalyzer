@@ -120,6 +120,33 @@ void tree_reader_fallback( TString file=default_ntp_file )
   tr->SetBranchAddress( "met", &met );
   tr->SetBranchAddress( "met_phi", &met_phi );
 
+  //                JW
+  // Electron Quantities
+  unsigned int num_electron;
+  float electron_pt[10], electron_eta[10], electron_phi[10], electron_energy[10];
+  tr->SetBranchAddress( "num_electron", &num_electron );
+  tr->SetBranchAddress( "electron_pt", electron_pt );
+  tr->SetBranchAddress( "electron_eta", electron_eta );
+  tr->SetBranchAddress( "electron_phi", electron_phi );
+  tr->SetBranchAddress( "electron_energy", electron_energy );
+  // Muon Quantities
+  unsigned int num_muon;
+  float muon_pt[10], muon_eta[10], muon_phi[10], muon_energy[10];
+  tr->SetBranchAddress("num_muon",&num_muon );
+  tr->SetBranchAddress("muon_pt", muon_pt );
+  tr->SetBranchAddress("muon_eta",muon_eta );
+  tr->SetBranchAddress("muon_phi",muon_phi );
+  tr->SetBranchAddress("muon_energy", muon_energy );
+  //Jet Quantities
+  unsigned int num_jet;
+  float jet_pt[10], jet_eta[10], jet_phi[10], jet_energy[10];
+  tr->SetBranchAddress("num_jet",&num_jet );
+  tr->SetBranchAddress("jet_pt", jet_pt );
+  tr->SetBranchAddress("jet_eta",jet_eta );
+  tr->SetBranchAddress("jet_phi",jet_phi );
+  tr->SetBranchAddress("jet_energy", jet_energy );
+  tr->SetBrnachAddress("jet_mass", jet_mass );
+  //
   TH1D* h_num_proton = new TH1D( "num_proton", "Number of protons reconstructed in event\\Events", 6, 0., 6. );
   TH1D* h_mpp_over_mgg = new TH1D( "mpp_over_mgg", "m_{pp}^{missing} / m_{#gamma#gamma} for double-tag events\\Events\\?.2f", 30, -2., 4. ),
        *h_ypp_minus_ygg = new TH1D( "ypp_minus_ygg", "y_{pp}^{missing} - y_{#gamma#gamma} for double-tag events\\Events\\?.2f", 50, -2.5, 2.5 );
@@ -193,7 +220,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
   const double rel_err_xi = 0.15; // 15% error on xi determination
 
   unsigned int num_evts_notag = 0, num_evts_with_tag = 0;
-  TLorentzVector pho1, pho2;
+  TLorentzVector pho1, pho2, electron, muon, jet;
   // tree readout stage
   for ( unsigned int i=0; i<tr->GetEntries(); i++ ) {
     tr->GetEntry( i );
@@ -226,6 +253,19 @@ void tree_reader_fallback( TString file=default_ntp_file )
       }
     }
 
+
+    //          JW
+    for ( unsigned int j=0; j<num_electron; j++ ) {
+      electron.SetPtEtaPhiM( electron_pt[j], electron_eta[j], electron_phi[j], 0.510998928 );
+    }
+    for ( unsigned int j=0; j<num_muon; j++ ) {
+      muon.SetPtEtaPhiM( muon_pt[j], muon_eta[j], muon_phi[j], .1056583715 );
+    }
+    for ( unsigned int j=0; j<num_jet; j++ ) {
+      jet.SetPtEtaPhiM( jet_pt[j], jet_eta[j], jet_phi[j], jet_mass[j] );
+    }
+    //
+
     for ( unsigned int j=0; j<num_diphoton; j++ ) {
       const float xi_reco1 = ( diphoton_pt1[j] * exp( -diphoton_eta1[j] ) + diphoton_pt2[j] * exp( -diphoton_eta2[j] ) )/sqrt_s,
                   xi_reco2 = ( diphoton_pt1[j] * exp(  diphoton_eta1[j] ) + diphoton_pt2[j] * exp(  diphoton_eta2[j] ) )/sqrt_s;
@@ -248,8 +288,10 @@ void tree_reader_fallback( TString file=default_ntp_file )
                   met_y = met*sin( met_phi );
       pho1.SetPtEtaPhiM( diphoton_pt1[j], diphoton_eta1[j], diphoton_phi1[j], 0. );
       pho2.SetPtEtaPhiM( diphoton_pt2[j], diphoton_eta2[j], diphoton_phi2[j], 0. );
+ 
+      //                  JW
       const TLorentzVector lv_met( met_x, met_y, 0., met ),
-                           dipho_met = pho1+pho2+lv_met;
+                           dipho_met = pho1+pho2+electron+muon+jet+lv_met;
       //cout << dipho_met.M() << " <---> " << diphoton_mass[j] << endl;
       const float diphoton_plus_met_mass = dipho_met.M(),
                   diphoton_plus_met_rap = dipho_met.Rapidity();
