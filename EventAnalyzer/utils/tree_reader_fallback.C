@@ -256,7 +256,7 @@ void tree_reader_fallback( TString file=default_ntp_file )
 
     //          JW
     for ( unsigned int j=0; j<num_electron; j++ ) {
-      electron.SetPtEtaPhiM( electron_pt[j], electron_eta[j], electron_phi[j], 0.510998928 );
+      electron.SetPtEtaPhiM( electron_pt[j], electron_eta[j], electron_phi[j], 0.000510998928 );
     }
     for ( unsigned int j=0; j<num_muon; j++ ) {
       muon.SetPtEtaPhiM( muon_pt[j], muon_eta[j], muon_phi[j], .1056583715 );
