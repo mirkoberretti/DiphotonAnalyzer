@@ -493,7 +493,7 @@ TreeProducer::beginJob()
   tree_->Branch( "electron_phi", fElectronPhi, "electron_phi[num_electron]/F" );
   tree_->Branch( "electron_energy", fElectronE, "electron_energy[num_electron]/F" );
 
-  tree_->Branch( "num_muon", &fMuonNum, "num_electron/i" );
+  tree_->Branch( "num_muon", &fMuonNum, "num_muon/i" );
   tree_->Branch( "muon_pt", fMuonPt, "muon_pt[num_muon]/F" );
   tree_->Branch( "muon_eta", fMuonEta, "muon_eta[num_muon]/F" );
   tree_->Branch( "muon_phi", fMuonPhi, "muon_phi[num_muon]/F" );
