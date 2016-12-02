@@ -82,7 +82,7 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 //                                 JW
     edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
     edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
-    edm::EDGetTokenT< edm::View<flashgg::Jet> > jetToken_; 
+    edm::EDGetTokenT< edm::View<vector<flashgg::Jet> > >  jetToken_; 
 //
     
     double sqrtS_;
@@ -107,7 +107,7 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     unsigned int fJetNum;
     float fElectronPt[MAX_ELECTRON], fElectronEta[MAX_ELECTRON], fElectronPhi[MAX_ELECTRON], fElectronE[MAX_ELECTRON];
     float fMuonPt[MAX_MUON], fMuonEta[MAX_MUON], fMuonPhi[MAX_MUON], fMuonE[MAX_MUON];
-  float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET], fJetMass[MAX_JET];
+    float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET], fJetMass[MAX_JET];
  //
 
     unsigned int fDiprotonNum;
@@ -149,9 +149,17 @@ TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
   vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
 //                               JW
-electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
-muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
-jetToken_     ( mayConsume< edm::View<flashgg::Jet> >            ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
+  electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
+  muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
+  jetToken_     ( consumes< edm::View<vector<flashgg::Jet> > >   ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
+
+  /*
+for (unsigned i = 0; i < jet->size(); i++) {
+     auto token = consumes<View<vector<flashgg::Jet> > >(jetToken_[i]);
+     jetToken_.push_back(token);
+   }
+ 
+  */
 //
   sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
   singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
@@ -308,6 +316,27 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     while ( dphi> TMath::Pi() ) dphi -= 2.*TMath::Pi();
     fDiphotonDphi[fDiphotonNum] = dphi;
 
+    //           JW
+    edm::Handle< edm::View<vector<flashgg::Jet> > > jets;
+    for( unsigned int j =0; j < jets->size(); j++ ) {
+    iEvent.getByToken(jetToken_[j],jets[j]);
+    }
+
+    fJetNum=0;
+
+    for ( unsigned int g  = 0; g < jets->size() && fJetNum < MAX_JET; g++ ) {
+      edm::Ptr<vector<flashgg::Jet> > jet = jets[i]->ptrAt( g );
+      fJetPt[fJetNum]   = jet->pt();
+      fJetEta[fJetNum]  = jet->eta();
+      fJetPhi[fJetNum]  = jet->phi();
+      fJetE[fJetNum]    = jet->energy();
+      fJetMass[fJetNum] = jet->mass();
+
+      fJetNum++;
+    }
+    
+    //
+
     //std::cout << fDiphotonPt1[fDiphotonNum] << " --- " << fDiphotonPt2[fDiphotonNum] << " --- " << fDiphotonM[fDiphotonNum] << std::endl;
 
     fDiphotonNum++;
@@ -390,8 +419,8 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  
  //Implementing jet 4 vector
  
- 
- edm::Handle< edm::View<flashgg::Jet> > jets;
+ /*
+ edm::Handle< edm::View<vector<flashgg::Jet> > > jets;
  iEvent.getByToken(jetToken_,jets);
  
  // Add jet vertex here
@@ -400,15 +429,16 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
  //edm::Ptr<reco::Vertex> jet_vtx{MAX_JET];
 
  for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
-  edm::Ptr<flashgg::Jet> jet = jets->ptrAt( i );
-  fJetPt[fJetNum] = jet->pt();
-  fJetEta[fJetNum] = jet->eta();
-  fJetPhi[fJetNum] = jet->phi();
-  fJetE[fJetNum] = jet->energy();
-  fJetMass[fJetNum] = jet->mass();
+   edm::Ptr<vector<flashgg::Jet> > jet = jets->ptrAt( i );
+   fJetPt[fJetNum] = jet->ptrAt(i)->pt();
+   fJetEta[fJetNum] = jet->eta();
+   fJetPhi[fJetNum] = jet->phi();
+   fJetE[fJetNum] = jet->energy();
+   fJetMass[fJetNum] = jet->mass();
  
  fJetNum++;
  }
+ */
 //
  //
  
