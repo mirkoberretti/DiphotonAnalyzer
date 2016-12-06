@@ -4,6 +4,9 @@
 #include "TCanvas.h"
 #include "TLegend.h"
 #include "TPaveText.h"
+#include "TH1.h"
+#include "TGraph.h"
+#include "TGraphErrors.h"
 
 #include <string.h>
 
