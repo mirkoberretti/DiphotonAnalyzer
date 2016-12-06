@@ -33,6 +33,11 @@
 #include "flashgg/DataFormats/interface/DiPhotonCandidate.h"
 #include "DataFormats/PatCandidates/interface/MET.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
+//                               JW
+#include "flashgg/DataFormats/interface/Electron.h"
+#include "flashgg/DataFormats/interface/Muon.h"
+#include "flashgg/DataFormats/interface/Jet.h"
+//
 
 #include "DiphotonAnalyzer/EventAnalyzer/interface/SelectionUtils.h"
 
@@ -47,6 +52,11 @@
 #define MAX_PROTON 10
 #define MAX_DIPROTON 5
 #define MAX_DIPHOTON 5
+//                               JW
+#define MAX_ELECTRON 10
+#define MAX_MUON 10
+#define MAX_JET 10
+//
 
 class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
   public:
@@ -64,11 +74,21 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     // ----------member data ---------------------------
 
     void clearTree();
-
-    edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
+    
     edm::EDGetTokenT< edm::View<flashgg::Proton> > protonToken_;
-    edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
+    edm::EDGetTokenT< edm::View<flashgg::DiPhotonCandidate> > diphotonToken_;
     edm::EDGetTokenT< edm::View<pat::MET> > metToken_;
+    edm::EDGetTokenT< edm::View<reco::Vertex> > vtxToken_;
+//                                 JW
+    edm::EDGetTokenT< edm::View<flashgg::Electron> > electronToken_;
+    edm::EDGetTokenT< edm::View<flashgg::Muon> > muonToken_; 
+    edm::EDGetTokenT< edm::View<vector<flashgg::Jet> > >  jetToken_; 
+
+    std::vector<edm::InputTag> inputTagJets_;
+
+  typedef std::vector<edm::Handle<edm::View<flashgg::Jet> > > JetCollectionVector;
+//
+    
     double sqrtS_;
     double singlePhotonMinPt_, singlePhotonMaxEta_, singlePhotonMinR9_;
     double photonPairMinMass_;
@@ -85,6 +105,14 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
     unsigned int fProtonNum;
     float fProtonXi[MAX_PROTON];
     unsigned int fProtonSide[MAX_PROTON];
+ //                   JW
+    unsigned int fElectronNum;
+    unsigned int fMuonNum;
+    unsigned int fJetNum;
+    float fElectronPt[MAX_ELECTRON], fElectronEta[MAX_ELECTRON], fElectronPhi[MAX_ELECTRON], fElectronE[MAX_ELECTRON];
+    float fMuonPt[MAX_MUON], fMuonEta[MAX_MUON], fMuonPhi[MAX_MUON], fMuonE[MAX_MUON];
+    float fJetPt[MAX_JET], fJetEta[MAX_JET], fJetPhi[MAX_JET], fJetE[MAX_JET], fJetMass[MAX_JET];
+ //
 
     unsigned int fDiprotonNum;
     float fDiprotonM[MAX_DIPROTON], fDiprotonY[MAX_DIPROTON];
@@ -120,19 +148,33 @@ class TreeProducer : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 // constructors and destructor
 //
 TreeProducer::TreeProducer(const edm::ParameterSet& iConfig) :
-  diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
   protonToken_  ( mayConsume< edm::View<flashgg::Proton> >         ( iConfig.getParameter<edm::InputTag>( "protonLabel") ) ),
-  vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
+  diphotonToken_( consumes< edm::View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<edm::InputTag>( "diphotonLabel" ) ) ),
   metToken_     ( mayConsume< edm::View<pat::MET> >                ( iConfig.getParameter<edm::InputTag>( "metLabel") ) ),
+  vtxToken_     ( mayConsume< edm::View<reco::Vertex> >            ( iConfig.getParameter<edm::InputTag>( "vertexLabel" ) ) ),
+//                               JW
+  electronToken_( mayConsume< edm::View<flashgg::Electron> >       ( iConfig.getParameter<edm::InputTag>( "electronLabel") ) ),
+  muonToken_    ( mayConsume< edm::View<flashgg::Muon> >           ( iConfig.getParameter<edm::InputTag>( "muonLabel") ) ),
+  //  jetToken_     ( consumes< edm::View<vector<flashgg::Jet> > >   ( iConfig.getParameter<edm::InputTag>( "jetLabel") ) ),
+
+
+//
   sqrtS_             ( iConfig.getParameter<double>( "sqrtS")),
   singlePhotonMinPt_ ( iConfig.getParameter<double>( "minPtSinglePhoton" ) ),
   singlePhotonMaxEta_( iConfig.getParameter<double>( "maxEtaSinglePhoton" ) ),
   singlePhotonMinR9_ ( iConfig.getParameter<double>( "minR9SinglePhoton" ) ),
   photonPairMinMass_ ( iConfig.getParameter<double>( "minMassDiPhoton" ) ),
   filename_          ( iConfig.getParameter<std::string>( "outputFilename" ) ),
+  inputTagJets_ ( iConfig.getParameter<std::vector<edm::InputTag> >( "inputTagJets" ) ),
   file_( 0 ), tree_( 0 )
+
 {
   //now do what ever initialization is needed
+for (unsigned i = 0; i < inputTagJets_.size(); i++) {
+     auto token = consumes<View<flashgg::Jet>>(inputTagJets_[i]);
+     jetToken_.push_back(token);
+ }
+
   file_ = new TFile( filename_.c_str(), "recreate" );
   file_->cd();
 
@@ -187,6 +229,31 @@ TreeProducer::clearTree()
     fDiphotonNearestDist[i] = 999.;
   }
 
+  fElectronNum = 0;
+  for ( unsigned int i=0; i<MAX_ELECTRON; i++ ) {
+    fElectronPt[i] = 0.;
+    fElectronEta[i] = 0.;
+    fElectronPhi[i] = 0.;
+    fElectronE[i] = 0.;
+  }
+
+  fMuonNum = 0;
+  for ( unsigned int i=0; i<MAX_MUON; i++ ) {
+    fMuonPt[i] = 0.;
+    fMuonEta[i] = 0.;
+    fMuonPhi[i] = 0.;
+    fMuonE[i] = 0.;
+  }
+
+  fJetNum = 0;
+  for ( unsigned int i=0; i<MAX_JET; i++ ) {
+    fJetPt[i] = 0.;
+    fJetPt[i] = 0.;
+    fJetEta[i] = 0.;
+    fJetE[i] = 0.;
+    fJetMass[i] = 0.;
+  }
+
   fMET = fMETPhi = 0.;
 
   fVertexNum = 0;
@@ -207,12 +274,20 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   fLumiSection = iEvent.luminosityBlock();
   fEventNum = iEvent.id().event();
 
+  // fetch the jet collection from EDM file
+  JetCollectionVector Jets( inputTagJets_.size() );
+  for( size_t j = 0; j < inputTagJets_.size(); ++j ) {
+    iEvent.getByToken( jetToken_[j], Jets[j] );
+  }
+    fJetNum=0;
+
   // fetch the diphoton collection from EDM file
   edm::Handle< edm::View<flashgg::DiPhotonCandidate> > diphotons;
   iEvent.getByToken(diphotonToken_, diphotons);
 
   fDiphotonNum = 0;
   edm::Ptr<reco::Vertex> diphoton_vtx[MAX_DIPHOTON];
+
 
   for ( unsigned int i=0; i<diphotons->size() && fDiphotonNum<MAX_DIPHOTON; i++ ) {
     edm::Ptr<flashgg::DiPhotonCandidate> diphoton = diphotons->ptrAt( i );
@@ -254,6 +329,26 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     while ( dphi> TMath::Pi() ) dphi -= 2.*TMath::Pi();
     fDiphotonDphi[fDiphotonNum] = dphi;
 
+    //           JW
+    edm::Handle< edm::View<vector<flashgg::Jet> > > jets;
+    for( unsigned int j =0; j < jets->size(); j++ ) {
+    iEvent.getByToken(jetToken_[j], Jets[j]);
+    }
+
+
+    for ( unsigned int g  = 0; g < Jets[i]->size() && fJetNum < MAX_JET; g++ ) {
+      edm::Ptr<flashgg::Jet> jet = Jets[i]->ptrAt( g );
+      fJetPt[fJetNum]   = jet->pt();
+      fJetEta[fJetNum]  = jet->eta();
+      fJetPhi[fJetNum]  = jet->phi();
+      fJetE[fJetNum]    = jet->energy();
+      fJetMass[fJetNum] = jet->mass();
+
+      fJetNum++;
+    }
+    
+    //
+
     //std::cout << fDiphotonPt1[fDiphotonNum] << " --- " << fDiphotonPt2[fDiphotonNum] << " --- " << fDiphotonM[fDiphotonNum] << std::endl;
 
     fDiphotonNum++;
@@ -283,7 +378,82 @@ TreeProducer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     fProtonNum++;
   }
+ 
+ //                               JW
+ 
+ //Implementing electron 4 vector
+ 
+ 
+ // fetch the electron collection from EDM file
+  edm::Handle< edm::View<flashgg::Electron> > electrons;
+  iEvent.getByToken(electronToken_, electrons);
+ 
+ fElectronNum=0;
+ //  edm::Ptr<reco::Vertex> electron_vtx[MAX_ELECTRON];
 
+  for ( unsigned int i=0; i<electrons->size() && fElectronNum<MAX_ELECTRON; i++ ) {
+  edm::Ptr<flashgg::Electron> electron = electrons->ptrAt( i );
+  fElectronPt[fElectronNum] = electron->pt();
+  fElectronEta[fElectronNum] = electron->eta();
+  fElectronPhi[fElectronNum] = electron->phi();
+  fElectronE[fElectronNum] = electron->energy();
+
+  //  fElectronVertexX[fElectronNum] = electron->vtx()->x();
+  //  fElectronVertexY[fElectronNum] = electron->vtx()->y();
+  //  fElectronVertexZ[fElectronNum] = electron->vtx()->z();
+  //  electron_vtx[fElectronNum] = electron->vtx();
+
+ fElectronNum++;
+ }
+
+ 
+ //Implementing muon 4 vector
+ 
+ 
+ edm::Handle< edm::View<flashgg::Muon> > muons;
+ iEvent.getByToken(muonToken_,muons);
+
+ // Add muon vertex here
+ 
+ fMuonNum=0;
+ //edm::Ptr<reco::Vertex> muon_vtx[MAX_MUON];
+
+
+ for ( unsigned int i=0; i<muons->size() && fMuonNum<MAX_MUON; i++ ) {
+  edm::Ptr<flashgg::Muon> muon = muons->ptrAt( i );
+  fMuonPt[fMuonNum] = muon->pt();
+  fMuonEta[fMuonNum] = muon->eta();
+  fMuonPhi[fMuonNum] = muon->phi();
+  fMuonE[fMuonNum] = muon->energy();
+ 
+ fMuonNum++;
+ }
+ 
+ //Implementing jet 4 vector
+ 
+ /*
+ edm::Handle< edm::View<vector<flashgg::Jet> > > jets;
+ iEvent.getByToken(jetToken_,jets);
+ 
+ // Add jet vertex here
+
+ fJetNum=0;
+ //edm::Ptr<reco::Vertex> jet_vtx{MAX_JET];
+
+ for ( unsigned int i=0; i<jets->size() && fJetNum<MAX_JET; i++ ) {
+   edm::Ptr<vector<flashgg::Jet> > jet = jets->ptrAt( i );
+   fJetPt[fJetNum] = jet->ptrAt(i)->pt();
+   fJetEta[fJetNum] = jet->eta();
+   fJetPhi[fJetNum] = jet->phi();
+   fJetE[fJetNum] = jet->energy();
+   fJetMass[fJetNum] = jet->mass();
+ 
+ fJetNum++;
+ }
+ */
+//
+ //
+ 
   std::cout << "# found " << fDiphotonNum << " diphoton candidate(s) with " << fProtonNum << " proton(s)!" << std::endl;
   // retrieve the missing ET
   edm::Handle< edm::View<pat::MET> > mets;
@@ -358,6 +528,25 @@ TreeProducer::beginJob()
   tree_->Branch( "diphoton_vertex_vtx2mmdist", fDiphotonVerticesAt2mmDist, "diphoton_vertex_vtx2mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx5mmdist", fDiphotonVerticesAt5mmDist, "diphoton_vertex_vtx5mmdist[num_diphoton]/i" );
   tree_->Branch( "diphoton_vertex_vtx1cmdist", fDiphotonVerticesAt1cmDist, "diphoton_vertex_vtx1cmdist[num_diphoton]/i" );
+
+  tree_->Branch( "num_electron", &fElectronNum, "num_electron/i" );
+  tree_->Branch( "electron_pt", fElectronPt, "electron_pt[num_electron]/F" );
+  tree_->Branch( "electron_eta", fElectronEta, "electron_eta[num_electron]/F" );
+  tree_->Branch( "electron_phi", fElectronPhi, "electron_phi[num_electron]/F" );
+  tree_->Branch( "electron_energy", fElectronE, "electron_energy[num_electron]/F" );
+
+  tree_->Branch( "num_muon", &fMuonNum, "num_muon/i" );
+  tree_->Branch( "muon_pt", fMuonPt, "muon_pt[num_muon]/F" );
+  tree_->Branch( "muon_eta", fMuonEta, "muon_eta[num_muon]/F" );
+  tree_->Branch( "muon_phi", fMuonPhi, "muon_phi[num_muon]/F" );
+  tree_->Branch( "muon_energy", fMuonE, "muon_energy[num_muon]/F" );
+
+  tree_->Branch( "num_jet", &fJetNum, "num_jet/i" );
+  tree_->Branch( "jet_pt", fJetPt, "jet_pt[num_jet]/F" );
+  tree_->Branch( "jet_eta", fJetEta, "jet_eta[num_jet]/F" );
+  tree_->Branch( "jet_phi", fJetPhi, "jet_phi[num_jet]/F" );
+  tree_->Branch( "jet_energy", fJetE, "jet_energy[num_jet]/F" );
+  tree_->Branch( "jet_mass", fJetMass, "jet_mass[num_jet]/F" );
 
   tree_->Branch( "num_vertex", &fVertexNum, "num_vertex/i" );
 
